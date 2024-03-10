@@ -1,1 +1,1 @@
-# fastcow-server
+# fastcow-devops
