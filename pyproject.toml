@@ -1,0 +1,39 @@
+[tool.poetry]
+authors = ["Cary <yaoleiguo@gmail.com>"]
+description = ""
+name = "fastcow-devops"
+package-mode = false
+readme = "README.md"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+alembic = "^1.13.1"
+fastapi = "^0.110.0"
+fastapi-mail = "^1.4.1"
+ipy = "^1.1"
+loguru = "^0.7.2"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+pycryptodome = "^3.20.0"
+pydantic-settings = "^2.2.1"
+pyotp = "^2.9.0"
+python = "^3.12"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+python-multipart = "^0.0.9"
+redis = "^5.0.3"
+setuptools = "^69.2.0"
+uvicorn = {extras = ["standard"], version = "^0.28.0"}
+# Pin bcrypt until passlib supports the latest
+bcrypt = "4.0.1"
+mysql-connector-python = "^8.3.0"
+sqlmodel = "^0.0.16"
+ldap3 = "^2.9.1"
+
+[tool.poetry.group.dev.dependencies]
+eventlet = "^0.35.2"
+isort = "^5.13.2"
+mypy = "^1.9.0"
+ruff = "^0.3.3"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]

@@ -1,0 +1,21 @@
+.vscode
+.idea
+*__pycache__
+*.pyc
+*.sqlite
+*dev.yaml
+*devtest
+logs
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# MJML DEV
+*node_modules
+*package-lock.json
+*package.json
+*build_comm
