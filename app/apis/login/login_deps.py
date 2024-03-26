@@ -45,7 +45,7 @@ def user_login_by_ldap(user: Users, password: str, ldap_conf: dict) -> None:
 
 
 async def user_login(
-    session: AsyncSessionDep, post: schema.LoginRequestForm = Depends()
+        session: AsyncSessionDep, post: schema.LoginRequestForm = Depends()
 ) -> LoginVerifyDepends:
     """
     登录验证
@@ -67,7 +67,7 @@ async def user_login(
             raise AuthError(message="用户密码不正确!", status_code=400)
     # 获取系统配置
     sys_conf = await get_redis_data("sys:settings")
-    verify_info.totp_enable = sys_conf["security"]["totp"]
+    verify_info.totp_enable = sys_conf["security"]["totp"] if sys_conf else False
     if user.user_type == 2:
         # 获取ldap配置
         ldap_conf = sys_conf["ldap"]["config"]
@@ -82,7 +82,9 @@ async def get_user_link_menus(session: AsyncSession, user: Users) -> list[Menus]
         "sys:settings", "general.user_default_roles"
     )
     # 当前用户关联的所有角色ID
-    roles_id: list[int] = [*default_roles]
+    roles_id =[]
+    if default_roles:
+        roles_id: list[int] = [*default_roles]
     for role in user.roles:
         if role.role_status:
             roles_id.append(role.id)
