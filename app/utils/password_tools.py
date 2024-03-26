@@ -70,7 +70,7 @@ def aes_decrypt_password(hash_password) -> str:
     if hash_res.get("code"):
         return hash_res.get("data")
     logger.error(f"AES解密失败 {hash_res.get("data")}")
-    return hash_password
+    raise ValueError("AES解密失败")
 
 
 def aes_verify_password(password, old_password) -> bool:

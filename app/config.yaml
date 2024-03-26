@@ -1,27 +1,29 @@
 SYSTEM:
   #平台名称 邮件文档等会用到
-  SYS_TITLE: 'Fastcow Devops'
+  SYS_TITLE: "Fastcow Devops"
   #平台链接 用于发送邮件等通知可能会用到 配置为前端地址
-  SYS_LINK: 'https://localhost'
+  SYS_LINK: "https://localhost"
   #API文档描述
-  SYS_DESCRIOTION: '
-                    Fastcow Devops API文档. 🚀
+  SYS_DESCRIPTION: "
+    Fastcow Devops API文档. 🚀
 
 
-                    [GitHub](https://github.com/cary997/fastcow-devops)
-                    '
+    [GitHub](https://github.com/cary997/fastcow-devops)
+    "
   #系统版本
-  SYS_VERSION: 'v1.0.1'
+  SYS_VERSION: "v1.0.1"
   #router的前缀
-  SYS_ROUTER_PREFIX: '/v1'
+  SYS_ROUTER_PREFIX: "/v1"
   #登录接口的url
-  SYS_ROUTER_AUTH2: '/access-token'
+  SYS_ROUTER_AUTH2: "/access-token"
   #刷新token接口的url
-  SYS_ROUTER_REFRESH: '/refresh-token'
+  SYS_ROUTER_REFRESH: "/refresh-token"
   #前端同步动态路由接口的url
-  SYS_ROUTER_SYNCROUTES: '/async-routes'
+  SYS_ROUTER_SYNCROUTES: "/async-routes"
   # 关闭api docs则更改为null
-  SYS_OPENAPI_URL: '/openapi.json'
+  SYS_OPENAPI_URL: "/openapi.json"
+  # 系统时区
+  SYS_TIMEZONE: "Asia/Shanghai"
 
 CORS:
   # 跨域配置
@@ -32,17 +34,18 @@ CORS:
 
 LOG:
   # 日志路径
-  LOG_PATH: 'logs/fastapi-naive.log'
-   # 为True时序列化日志格式为JSON
-  LOG_SERIASIZE: False
+  LOG_PATH:
+    "logs/fastapi-naive.log"
+    # 为True时序列化日志格式为JSON
+  LOG_SERIALIZE: False
   # 日志级别
-  LOG_LEVER: 'DEBUG'
+  LOG_LEVER: "DEBUG"
   # 日志切割时间(每天)
-  LOG_ROTATION_TIME: '00:00:00'
+  LOG_ROTATION_TIME: "00:00:00"
   # 日志切割大小
-  LOG_ROTATION_SIZE: '500 MB'
+  LOG_ROTATION_SIZE: "500 MB"
   # 日志保留时间
-  LOG_RETENTION: '15 days'
+  LOG_RETENTION: "15 days"
   # 是否输出控制台，False为不输出
   LOG_CONSOLE: True
   # 是否输出到文件，False为不输出
@@ -50,43 +53,41 @@ LOG:
 
 SECURITY:
   # 密码加密KEY 16位数字和子母
-  SECRET_KEY: 'TYK6tziA9azcb31d'
-  SECRET_IV: 'FD2fnb7ytFatHeem'
+  SECRET_KEY: "TYK6tziA9azcb31d"
+  SECRET_IV: "FD2fnb7ytFatHeem"
   # JWT加密 openssl rand -hex 32
-  SECRET_JWT_KEY: '26b38a12da2920855a9d839047525fa96f6fafc8a4c32379dd758e31022d33f3'
-  SECRET_JWT_ALGORITHM: 'HS256'
+  SECRET_JWT_KEY: "26b38a12da2920855a9d839047525fa96f6fafc8a4c32379dd758e31022d33f3"
+  SECRET_JWT_ALGORITHM: "HS256"
   # JWT过期时间：分钟
   SECRET_JWT_EXP: 10
   # JWT刷新令牌过期时间：分钟
   SECRET_REJWT_EXP: 180
 
 DATABASE:
-    # MYSQL地址
-    DB_HOST: '127.0.0.1'
-    # MYSQL端口
-    DB_PORT: 3306
-    # MYSQL数据库名称
-    DB_NAME: 'fastcow'
-    # MYSQL连接用户
-    DB_USER: 'root'
-    # MYSQL密码
-    DB_PASSWORD: 'root123'
-    # MYSQL query设置
-    DB_QUERY: 'charset=utf8mb4"'
-    # 是否打印sql
-    DB_ECHO: False
-      #时区
-    DB_TIMEZONE: 'Asia/Shanghai'
+  # MYSQL地址
+  DB_HOST: "127.0.0.1"
+  # MYSQL端口
+  DB_PORT: 3306
+  # MYSQL数据库名称
+  DB_NAME: "fastcow"
+  # MYSQL连接用户
+  DB_USER: "root"
+  # MYSQL密码
+  DB_PASSWORD: "root123"
+  # MYSQL query设置
+  DB_QUERY: 'charset=utf8mb4"'
+  # 是否打印sql
+  DB_ECHO: False
 
 CACHE:
   # standalone cluster sentinel
   #REDIS_MODE: 'cluster'
-  REDIS_MODE: 'standalone'
+  REDIS_MODE: "standalone"
   # standalone模式选择使用的库
   REDIS_DB: 0
   # standalone：IP:Port，cluster和sentinel：IP1:Port1,IP2:Port2,...
   #REDIS_ADDRESS: '192.168.10.10:6380,192.168.10.10:6381,192.168.10.10:6382,192.168.10.10:6383,192.168.10.10:6384,192.168.10.10:6385'
-  REDIS_ADDRESS: '127.0.0.1:6379'
+  REDIS_ADDRESS: "127.0.0.1:6379"
   # Username,没有则null
   REDIS_USERNAME: null
   # Password
@@ -94,7 +95,7 @@ CACHE:
   # sentinel name
   REDIS_SENTINEL_NAME: null
   # 编码
-  REDIS_ENCODING: 'utf-8'
+  REDIS_ENCODING: "utf-8"
   # 最大连接数
   REDIS_MAX_CONNECTIONS: 50
   #是否开启SSL
@@ -103,3 +104,20 @@ CACHE:
   REDIS_SSL_CERT_REQS: null
   #ssl ca证书路径/path/to/ca.pem
   REDIS_SSL_CA_CERTS: null
+
+CELERY:
+  # Broker Settings
+  CELERY_BROKER_URL: "redis://127.0.0.1:6379/1"
+  # The backend used to store task results (tombstones)
+  # 如果使用DATABASE设置 则填写DATABASE即可
+  CELERY_RESULT_BACKEND: "redis://127.0.0.1:6379/0"
+  # Time (in seconds, or a timedelta object) for when after stored task tombstones will be deleted.
+  CELERY_RESULT_EXPIRES: 864000
+  # How many messages to prefetch at a time multiplied by the number of concurrent processe
+  CELERY_CELERYD_PREFETCH_MULTIPLIER: 5
+  # Maximum number of tasks a pool worker process can execute before it’s replaced with a new one. Default is no limit
+  CELERY_WORKER_MAX_TASKS_PER_CHILD: 100
+  # Disable all rate limits, even if tasks has explicit rate limits set
+  CELERY_WORKER_DISABLE_RATE_LIMITS: True
+  # If enabled dates and times in messages will be converted to use the UTC timezone.
+  CELERY_ENABLE_UTC: False

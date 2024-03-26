@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlmodel import Field, SQLModel
 
-from app.base import ResponseBase
+from app.core.base import ResponseBase
 
 
 class ldapSearchUserResults(SQLModel):

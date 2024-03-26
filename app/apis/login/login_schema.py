@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Field, SQLModel
-from app.base import ModelBase, ResponseBase
+from app.core.base import ModelBase, ResponseBase
 from app.models.auth_model import MenusBase
 
 
@@ -66,14 +66,14 @@ class LoginRequestForm(OAuth2PasswordRequestForm):
     """
 
     def __init__(
-        self,
-        grant_type: str = Form(default="password", description="验证方式"),
-        username: str = Form(description="账户"),
-        password: Optional[str] = Form(description="密码"),
-        scope: str = Form(default="", description="作用域"),
-        client_id: Optional[str] = Form(default=None),
-        client_secret: Optional[str] = Form(default=None),
-        totp_code: Optional[str] = Form(default=None, description="totp验证码"),
+            self,
+            grant_type: str = Form(default="password", description="验证方式"),
+            username: str = Form(description="账户"),
+            password: Optional[str] = Form(description="密码"),
+            scope: str = Form(default="", description="作用域"),
+            client_id: Optional[str] = Form(default=None),
+            client_secret: Optional[str] = Form(default=None),
+            totp_code: Optional[str] = Form(default=None, description="totp验证码"),
     ):
         super().__init__(
             grant_type=grant_type,
@@ -100,4 +100,4 @@ class MenusTreeResponse(ResponseBase):
     同步动态路由响应
     """
 
-    data: list[MenusTree]
+    data: list[MenusTree | dict]

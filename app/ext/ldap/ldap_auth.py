@@ -115,9 +115,7 @@ class LdapAuthMixin:
             return ldap_res(code=0, message=self.conn_messagr, data=[])
         try:
             _res = self.conn.rebind(user=user, password=password)
-            return ldap_res(
-                code=1 if _res else 0, message="认证失败，请检查账户状态"
-            )
+            return ldap_res(code=1 if _res else 0, message="认证失败，请检查账户状态")
         except LDAPInvalidCredentialsResult as e:
             if "52e" in e.message:
                 message = "账号密码不正确"

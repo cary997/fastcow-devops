@@ -1,37 +1,37 @@
-from sqlmodel import Session, col, or_, select
-
+from sqlmodel import col, or_, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.auth_model import Roles, Users
 from app.utils.password_tools import generate_password, get_password_hash
 
 from . import users_schema as schema
 
 
-def get_user_name_or_phone(
-    *, session: Session, username: str, phone: str
+async def get_user_name_or_phone(
+    session: AsyncSession, username: str, phone: str
 ) -> Users | None:
     """
     username查找用户
     """
     stmt = select(Users).where(or_(Users.username == username, Users.phone == phone))
-    user = session.exec(stmt).first()
+    user = (await session.exec(stmt)).first()
     return user
 
 
-def update_roles_by_id(
-    session: Session, user: Users, roles_id_list: list[int]
+async def update_roles_by_id(
+    session: AsyncSession, user: Users, roles_id_list: list[int]
 ) -> Users:
     """
     根据Roles ID更新User Roles字段
     """
-    roles_list = session.exec(
-        select(Roles).where(col(Roles.id).in_(roles_id_list))
+    roles_list = (
+        await session.exec(select(Roles).where(col(Roles.id).in_(roles_id_list)))
     ).all()
     user.roles = roles_list
     return user
 
 
-def create_user(
-    session: Session, user_create: schema.UserCreate
+async def create_user(
+    session: AsyncSession, user_create: schema.UserCreate
 ) -> schema.UserCreateResult:
     """
     添加用户
@@ -44,14 +44,14 @@ def create_user(
     if roles_id_list:
         db_user = update_roles_by_id(session, db_user, roles_id_list)
     session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    await session.commit()
+    await session.refresh(db_user)
     res = schema.UserCreateResult(**db_user.model_dump(), roles=roles_id_list)
     return res
 
 
-def update_user(
-    session: Session, db_user: Users, user_update: schema.UserUpdate
+async def update_user(
+    session: AsyncSession, db_user: Users, user_update: schema.UserUpdate
 ) -> schema.UserUpdateResult:
     """
     更新单用户
@@ -64,15 +64,17 @@ def update_user(
     if user_update.update_roles:
         db_user.roles.clear()
     if roles_id_list:
-        db_user = update_roles_by_id(session, db_user, roles_id_list)
+        db_user = await update_roles_by_id(session, db_user, roles_id_list)
     session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    await session.commit()
+    await session.refresh(db_user)
     res = schema.UserUpdateResult(**db_user.model_dump(), roles=roles_id_list)
     return res
 
 
-def reset_password(session: Session, user: Users, password: str | None = None) -> str:
+async def reset_password(
+    session: AsyncSession, user: Users, password: str | None = None
+) -> str:
     """
     重置或更新密码
     """
@@ -80,5 +82,5 @@ def reset_password(session: Session, user: Users, password: str | None = None) -
         password = generate_password(12)
     user.sqlmodel_update({"password": get_password_hash(password)})
     session.add(user)
-    session.commit()
+    await session.commit()
     return password

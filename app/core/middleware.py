@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from app.base import ResponseBase
+from app.core.base import ResponseBase
 from app.core.config import settings
 from app.core.security import get_client_ip, verify_client_ip
 

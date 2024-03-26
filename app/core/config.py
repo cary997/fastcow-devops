@@ -55,14 +55,15 @@ class Settings(BaseSettings):
     # FastAPI配置
     SYS_TITLE: str = DefaultConfig["SYSTEM"]["SYS_TITLE"]
     SYS_LINK: HttpUrl = DefaultConfig["SYSTEM"]["SYS_LINK"]
-    SYS_DESCRIOTION: str = DefaultConfig["SYSTEM"]["SYS_DESCRIOTION"]
+    SYS_DESCRIPTION: str = DefaultConfig["SYSTEM"]["SYS_DESCRIPTION"]
     SYS_VERSION: str = DefaultConfig["SYSTEM"]["SYS_VERSION"]
     SYS_ROUTER_PREFIX: str = DefaultConfig["SYSTEM"]["SYS_ROUTER_PREFIX"]
     SYS_ROUTER_AUTH2: str = DefaultConfig["SYSTEM"]["SYS_ROUTER_AUTH2"]
     SYS_ROUTER_REFRESH: str = DefaultConfig["SYSTEM"]["SYS_ROUTER_REFRESH"]
     SYS_ROUTER_SYNCROUTES: str = DefaultConfig["SYSTEM"]["SYS_ROUTER_SYNCROUTES"]
     SYS_OPENAPI_URL: str | None = DefaultConfig["SYSTEM"]["SYS_OPENAPI_URL"]
-
+    SYS_TIMEZONE: str | None = DefaultConfig["SYSTEM"]["SYS_TIMEZONE"]
+    
     # 跨域配置
     CORS_ORIGINS: list[str] = DefaultConfig["CORS"]["CORS_ORIGINS"]
     CORS_ALLOW_CREDENTIALS: bool = DefaultConfig["CORS"]["CORS_ALLOW_CREDENTIALS"]
@@ -71,7 +72,7 @@ class Settings(BaseSettings):
 
     # 日志配置
     LOG_PATH: str = DefaultConfig["LOG"]["LOG_PATH"]
-    LOG_SERIASIZE: bool = DefaultConfig["LOG"]["LOG_SERIASIZE"]
+    LOG_SERIALIZE: bool = DefaultConfig["LOG"]["LOG_SERIALIZE"]
     LOG_LEVER: str = DefaultConfig["LOG"]["LOG_LEVER"]
     LOG_ROTATION_TIME: str = DefaultConfig["LOG"]["LOG_ROTATION_TIME"]
     LOG_ROTATION_SIZE: str = DefaultConfig["LOG"]["LOG_ROTATION_SIZE"]
@@ -95,13 +96,10 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = DefaultConfig["DATABASE"]["DB_PASSWORD"]
     DB_QUERY: str = DefaultConfig["DATABASE"]["DB_QUERY"]
     DB_ECHO: bool = DefaultConfig["DATABASE"]["DB_ECHO"]
-    DB_TIMEZONE: str = DefaultConfig["DATABASE"]["DB_TIMEZONE"]
 
-    @computed_field  # type: ignore[misc]
-    @property
-    def DATABASE_URI(self) -> MySQLDsn:
+    def get_database_uri(self, scheme):
         return MySQLDsn.build(  # pylint: disable=no-member
-            scheme="mysql+mysqlconnector",
+            scheme=scheme,
             username=self.DB_USER,
             password=self.DB_PASSWORD,
             host=self.DB_HOST,
@@ -109,6 +107,22 @@ class Settings(BaseSettings):
             path=self.DB_NAME,
             query=self.DB_QUERY,
         )
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def DATABASE_URI(self) -> MySQLDsn:
+        """
+        Mysql URI for database
+        """
+        return self.get_database_uri(scheme="mysql+mysqlconnector")
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def ASYNC_DATABASE_URI(self) -> MySQLDsn:
+        """
+        Mysql Async URI for database
+        """
+        return self.get_database_uri(scheme="mysql+asyncmy")
 
     # redis配置
     REDIS_MODE: str = DefaultConfig["CACHE"]["REDIS_MODE"]
@@ -122,6 +136,21 @@ class Settings(BaseSettings):
     REDIS_SSL: bool = DefaultConfig["CACHE"]["REDIS_SSL"]
     REDIS_SSL_CERT_REQS: str | None = DefaultConfig["CACHE"]["REDIS_SSL_CERT_REQS"]
     REDIS_SSL_CA_CERTS: str | None = DefaultConfig["CACHE"]["REDIS_SSL_CA_CERTS"]
+
+    # celery配置
+    CELERY_BROKER_URL: str = DefaultConfig["CELERY"]["CELERY_BROKER_URL"]
+    CELERY_RESULT_BACKEND: str = DefaultConfig["CELERY"]["CELERY_RESULT_BACKEND"]
+    CELERY_RESULT_EXPIRES: int = DefaultConfig["CELERY"]["CELERY_RESULT_EXPIRES"]
+    CELERY_CELERYD_PREFETCH_MULTIPLIER: int = DefaultConfig["CELERY"][
+        "CELERY_CELERYD_PREFETCH_MULTIPLIER"
+    ]
+    CELERY_WORKER_MAX_TASKS_PER_CHILD: int = DefaultConfig["CELERY"][
+        "CELERY_WORKER_MAX_TASKS_PER_CHILD"
+    ]
+    CELERY_WORKER_DISABLE_RATE_LIMITS: bool = DefaultConfig["CELERY"][
+        "CELERY_WORKER_DISABLE_RATE_LIMITS"
+    ]
+    CELERY_ENABLE_UTC: bool = DefaultConfig["CELERY"]["CELERY_ENABLE_UTC"]
 
 
 # 缓存配置信息
@@ -138,4 +167,4 @@ __all__ = ["settings"]
 
 if __name__ == "__main__":
     # print(settings.model_dump())
-    print(settings.SQLALCHEMY_DATABASE_URI)
+    print(settings.DATABASE_URI)

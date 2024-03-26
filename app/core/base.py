@@ -1,12 +1,10 @@
 import time
-from typing import Dict, List, Mapping, Optional, TypeVar, Union
+from typing import Dict, List, Mapping, Optional, Union
 
 from fastapi import BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import BIGINT, Field, SQLModel
 from starlette.responses import JSONResponse
-
-T = TypeVar("T", Dict, List, SQLModel)
 
 
 class ModelBase(SQLModel):
@@ -79,8 +77,3 @@ class ResponseBase(SQLModel):
             media_type=media_type,
             background=background,
         )
-
-
-if __name__ == "__main__":
-    a = ResponseBase
-    print(a(message="hello world", data=[]).fail())

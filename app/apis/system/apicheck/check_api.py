@@ -1,9 +1,10 @@
 from typing import Any
+
 from fastapi import APIRouter
 
-from app.base import ResponseBase
-from app.extend.channels.email import send_mail
-from app.extend.ldap.ldap_auth import LdapAuthMixin
+from app.core.base import ResponseBase
+from app.ext.channels.tasks import send_email
+from app.ext.ldap.ldap_auth import LdapAuthMixin
 from app.models.system_model import ldapConfig, mailServerSettings
 
 from .check_schema import testLdapResponse
@@ -12,22 +13,22 @@ router = APIRouter()
 
 
 @router.post("/email", summary="邮件测试接口", response_model=ResponseBase)
-async def test_email(config: mailServerSettings, receive: str) -> Any:
+def test_email(config: mailServerSettings, receive: str) -> Any:
     response = ResponseBase
-    _res = await send_mail(
+    _res = send_email(
         recipients=receive,
-        config=config.model_dump(),
+        config=config,
         subject="配置测试通知",
         template_name="email-test.html",
     )
+    rep = response(message=_res.get("message"))
     if _res.get("code"):
-        return response(message="Test Success").success()
-    else:
-        return response(message=_res.get("message")).fail()
+        return rep.success()
+    return rep.fail()
 
 
 @router.post("/ldap", summary="ldap测试接口", response_model=testLdapResponse)
-async def test_ldap(config: ldapConfig, username: str) -> Any:
+def test_ldap(config: ldapConfig, username: str) -> Any:
     response = testLdapResponse
     _config = config.model_dump()
     conn = LdapAuthMixin(**_config)

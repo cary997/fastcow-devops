@@ -2,7 +2,7 @@ from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
-from app.base import ModelBase, ResponseBase
+from app.core.base import ModelBase, ResponseBase
 from app.models.auth_model import Roles, UsersBase
 
 

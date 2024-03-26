@@ -1,8 +1,8 @@
 from enum import IntEnum
 from typing import Optional
-from sqlmodel import SQLModel, Field, JSON, BIGINT
+from sqlmodel import SQLModel, Field, JSON
 
-from app.base import ModelBase
+from app.core.base import ModelBase
 from app.utils.password_tools import aes_hash_password
 
 
@@ -110,20 +110,16 @@ class mailServerSettings(SQLModel):
     邮件服务器设置
     """
 
-    MAIL_SERVER: Optional[str] = Field(default=None, description="邮件服务器地址")
-    MAIL_PORT: Optional[int] = Field(default=None, description="邮件服务器端口")
-    MAIL_USERNAME: Optional[str] = Field(default=None, description="邮件服务器用户")
-    MAIL_PASSWORD: Optional[str] = Field(default=None, description="邮件服务器密码")
-    MAIL_FROM: Optional[str] = Field(default=None, description=" 发件人地址")
-    MAIL_FROM_NAME: Optional[str] = Field(default=None, description="邮件标题")
-    MAIL_STARTTLS: Optional[bool] = Field(
+    mail_server: Optional[str] = Field(default=None, description="邮件服务器地址")
+    mail_port: Optional[int] = Field(default=None, description="邮件服务器端口")
+    mail_username: Optional[str] = Field(default=None, description="邮件服务器用户")
+    mail_password: Optional[str] = Field(default=None, description="邮件服务器密码")
+    mail_from: Optional[str] = Field(default=None, description=" 发件人地址")
+    mail_from_name: Optional[str] = Field(default=None, description="邮件标题")
+    mail_start_tls: Optional[bool] = Field(
         default=True, description="用于 STARTTLS 连接"
     )
-    MAIL_SSL_TLS: Optional[bool] = Field(default=False, description="用于 SSL 连接")
-    USE_CREDENTIALS: Optional[bool] = Field(default=True, description="否登录到服务器")
-    VALIDATE_CERTS: Optional[bool] = Field(
-        default=True, description="是否验证邮件服务器证书"
-    )
+    mail_ssl: Optional[bool] = Field(default=False, description="用于 SSL 连接")
 
 
 class channelsSeetings(SQLModel):
@@ -193,7 +189,6 @@ class SystemSettings(SettingsBase, ModelBase, table=True):
 
     __tablename__ = "sys_settings"
     id: Optional[int] = Field(
-        sa_type=BIGINT,
         default=None,
         primary_key=True,
         sa_column_kwargs={"autoincrement": False},

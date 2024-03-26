@@ -2,7 +2,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.routing import APIRoute
 from loguru import logger
 
-from app.apis import loginRouter,apiRouter
+from app.apis.routers import loginRouter, apiRouter
 from app.core.config import settings
 
 Routers = APIRouter(prefix=settings.SYS_ROUTER_PREFIX)

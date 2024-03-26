@@ -8,6 +8,7 @@ from IPy import IP
 from jose import jwt
 from loguru import logger
 
+from app.apis.login.login_schema import AccessToken
 from app.core.config import settings
 from app.models.auth_model import Users
 from app.utils.cache_tools import get_redis_data, redis_exists_key
@@ -34,7 +35,7 @@ def create_access_token(subject: dict, exp: int) -> str:
     return encoded_jwt
 
 
-def format_token(user: Users) -> dict:
+def format_token(user: Users) -> AccessToken:
     """
     签发jwt
     :param user:
@@ -69,7 +70,7 @@ def format_token(user: Users) -> dict:
         "username": username,
         "nickname": nickname,
     }
-    return data
+    return AccessToken.model_validate(data)
 
 
 def generate_totp(name: str, issuer_name: str = settings.SYS_TITLE) -> dict:

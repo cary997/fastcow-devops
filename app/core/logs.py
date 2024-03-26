@@ -21,12 +21,12 @@ class InterceptHandler(logging.Handler):
         try:
             level = logger.level(record.levelname).name
         except ValueError:
-            level = record.levelno # type: ignore
+            level = record.levelno  # type: ignore
 
         # Find caller from where originated the logged message
         frame, depth = logging.currentframe(), 2
         while frame.f_code.co_filename == logging.__file__:
-            frame = frame.f_back # type: ignore
+            frame = frame.f_back  # type: ignore
             depth += 1
 
         logger.opt(depth=depth, exception=record.exc_info).log(
@@ -48,7 +48,7 @@ def format_record(record: dict) -> str:
     """
 
     format_string = (
-        "<green>{time:YYYY-MM-DD HH:mm:ss:SSS}</green> | {level.icon}  <level>{level.name}</level> | <cyan>{"
+        "<green>{time:YYYY-MM-DD HH:mm:ss:SSS}</green> | <level>{level.name}</level> | <cyan>{"
         "name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <cyan>{process}</cyan>:<cyan>{"
         "thread}</cyan> | <level>{message}</level> "
     )
@@ -66,6 +66,7 @@ class Rotator:
     """
     Rotates log files based on size and time.
     """
+
     def __init__(self, str_size, str_time):
         self._size = string_parser.parse_size(str_size)
         at = string_parser.parse_time(str_time)
@@ -96,7 +97,7 @@ def init_logs() -> None:
 
     loggers = (
         logging.getLogger(name)
-        for name in logging.root.manager.loggerDict # pylint: disable=no-member
+        for name in logging.root.manager.loggerDict  # pylint: disable=no-member
         if name.startswith("uvicorn") or name.startswith("fastapi")
         # or name.startswith("sqlalchemy")
     )
@@ -112,8 +113,8 @@ def init_logs() -> None:
         logger.add(
             sink=sys.stderr,
             level=LOG_LEVER,
-            format=format_record, # type: ignore
-            serialize=settings.LOG_SERIASIZE,
+            format=format_record,  # type: ignore
+            serialize=settings.LOG_SERIALIZE,
         )
 
     # 判断是否输出到文件
@@ -129,7 +130,7 @@ def init_logs() -> None:
             "enqueue": True,
             "diagnose": True,
             "backtrace": True,
-            "serialize": settings.LOG_SERIASIZE,
+            "serialize": settings.LOG_SERIALIZE,
         }
         # 日志文件路径
         access_log = os.path.join(settings.LOG_PATH, "access.log")

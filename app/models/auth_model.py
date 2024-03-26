@@ -3,21 +3,22 @@ from typing import List, Optional
 
 from sqlmodel import BIGINT, JSON, Field, Relationship, SQLModel
 
-from app.base import ModelBase
+from app.core.base import ModelBase
+
+
+class UserTypeEnum(IntEnum):
+    """
+    用户类型枚举
+    """
+
+    local = 1
+    ldap = 2
 
 
 class UsersBase(SQLModel):
     """
     用户基础模型
     """
-
-    class UserTypeEnum(IntEnum):
-        """
-        用户类型枚举
-        """
-
-        local = 1
-        ldap = 2
 
     nickname: str = Field(default=..., max_length=32, description="显示名称")
     phone: Optional[str] = Field(
@@ -149,7 +150,9 @@ class Users(UsersBase, ModelBase, table=True):
     username: str = Field(default=..., max_length=32, description="用户名")
     password: str = Field(default=..., max_length=128, description="密码")
     roles: List["Roles"] = Relationship(
-        back_populates="users", link_model=UsersRolesLink
+        back_populates="users",
+        link_model=UsersRolesLink,
+        sa_relationship_kwargs={"lazy": "selectin"},
     )
 
 
@@ -161,10 +164,14 @@ class Roles(RolesBase, ModelBase, table=True):
     __tablename__ = "auth_roles"
 
     users: List["Users"] = Relationship(
-        back_populates="roles", link_model=UsersRolesLink
+        back_populates="roles",
+        link_model=UsersRolesLink,
+        sa_relationship_kwargs={"lazy": "selectin"},
     )
     menus: List["Menus"] = Relationship(
-        back_populates="roles", link_model=RolesMenusLink
+        back_populates="roles",
+        link_model=RolesMenusLink,
+        sa_relationship_kwargs={"lazy": "selectin"},
     )
 
 

@@ -12,7 +12,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 
 # 实例化fastapi
 app = FastAPI(
-    description=f"""{settings.SYS_DESCRIOTION}""",
+    description=f"""{settings.SYS_DESCRIPTION}""",
     title=settings.SYS_TITLE,
     version=settings.SYS_VERSION,
     docs_url="/v1/docs",

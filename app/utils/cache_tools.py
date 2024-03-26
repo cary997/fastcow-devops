@@ -3,7 +3,7 @@ import json
 from builtins import anext
 from typing import Any
 
-from app.core.cache import get_redis
+from app.core.cache import get_async_redis
 from app.utils.format_tools import get_dict_target_value
 
 def is_json(data: str | None) -> bool:
@@ -24,7 +24,7 @@ async def redis_exists_key(key: str) -> bool:
     key : reids中的key
     判断key是否存在，数据为空也视为不存在
     """
-    _c = get_redis()
+    _c = get_async_redis()
     cache = await anext(_c)
     # 返回值1和0
     state = await cache.exists(key)
@@ -41,7 +41,7 @@ async def get_redis_data(key: str, value_key: str | None = None) -> Any:
     key : reids中的key
     value_key : 如果是个json可直接查找json里的字段
     """
-    _c = get_redis()
+    _c = get_async_redis()
     cache = await anext(_c)
     try:
         is_empty = await redis_exists_key(key)
@@ -62,7 +62,7 @@ async def set_redis_data(key: str, value: str, **kwargs) -> None:
     key : reids中的key
     value : 要存的数据
     """
-    _c = get_redis()
+    _c = get_async_redis()
     cache = await anext(_c)
     try:
         if isinstance(value, dict):

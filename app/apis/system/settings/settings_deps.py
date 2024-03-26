@@ -1,24 +1,30 @@
 from fastapi import HTTPException
 from loguru import logger
-from sqlmodel import Session
-
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from app.ext.ldap.utils import get_ldap_sync_conf
 from app.utils.ipaddress_tools import check_ip_list
 from app.utils.password_tools import aes_hash_password, is_decrypt
 from .settings_schema import SettingsBase
 from app.models.system_model import SystemSettings
+from app.ext.sqlmodel_celery_beat.models import (
+    PeriodicTask,
+    IntervalSchedule,
+    IntervalPeriod,
+)
 
 
-def get_or_create_settings(session: Session) -> SystemSettings:
+async def get_or_create_settings(session: AsyncSession) -> SystemSettings:
     """
     获取或创建系统配置
     """
-    settings = session.get(SystemSettings, 1)
+    settings = await session.get(SystemSettings, 1)
     if not settings:
         try:
             settings = SystemSettings.model_validate(SystemSettings(id=1))
             session.add(settings)
-            session.commit()
-            session.refresh(settings)
+            await session.commit()
+            await session.refresh(settings)
             return settings
         except Exception as e:  # pylint: disable=broad-exception-caught
             session.rollback()
@@ -47,7 +53,9 @@ async def set_settings_depends(update_content: SettingsBase) -> dict:
     # general配置中的密码加密
     if "general" in update_dict:
         general = update_dict.get("general")
-        user_default_password = general.get("user_default_password")
+        user_default_password = (
+            general.get("user_default_password") if general else None
+        )
         if user_default_password is not None and not is_decrypt(user_default_password):
             update_dict["general"]["user_default_password"] = aes_hash_password(
                 user_default_password
@@ -55,16 +63,51 @@ async def set_settings_depends(update_content: SettingsBase) -> dict:
     # ldap配置中的密码加密
     if "ldap" in update_dict:
         ldap = update_dict.get("ldap")
-        ldap_password = ldap.get("password")
+        ldap_config = ldap.get("config") if ldap else None
+        ldap_password = ldap_config.get("password") if ldap_config else None
         if ldap_password is not None and not is_decrypt(ldap_password):
-            update_dict["ldap"]["password"] = aes_hash_password(ldap_password)
-
+            update_dict["ldap"]["config"]["password"] = aes_hash_password(ldap_password)
     # channels配置中的密码加密
     if "channels" in update_dict:
         channels = update_dict.get("channels")
-        mail_password = channels.get("email").get("MAIL_PASSWORD")
+        mail_config = channels.get("email") if channels else None
+        mail_password = mail_config.get("mail_password") if mail_config else None
         if mail_password is not None and not is_decrypt(mail_password):
             update_dict["channels"]["email"]["MAIL_PASSWORD"] = aes_hash_password(
                 mail_password
             )
     return update_dict
+
+
+async def add_ldap_sync_interval_task(session: AsyncSession):
+    """
+    添加ldap定时同步任务
+    """
+    sync_config = get_ldap_sync_conf()
+    task = (
+        await session.exec(
+            select(PeriodicTask).where(PeriodicTask.task == "tasks.ldap_sync")
+        )
+    ).one_or_none()
+    schedule = (await session.exec(
+        select(IntervalSchedule).filter_by(
+            every=sync_config.interval, period=IntervalPeriod.MINUTES
+        )
+    )).one_or_none()
+    if not schedule:
+        schedule = IntervalSchedule(
+                every=sync_config.interval, period=IntervalPeriod.MINUTES
+            )
+    if task:
+        task.interval=schedule
+        task.enabled=sync_config.enable
+    else:
+        task = PeriodicTask(
+            name="ldap_sync",
+            task="tasks.ldap_sync",
+            interval=schedule,
+            enabled=sync_config.enable
+        )
+    session.add(task)
+    await session.commit()
+
