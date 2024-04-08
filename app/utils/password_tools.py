@@ -15,12 +15,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 aeshash = AESCBC(settings.SECRET_KEY, settings.SECRET_IV)
 
 
-def random_str() -> str:
+def random_str(text: str = None) -> str:
     """
     唯一随机字符串
     :return: str
     """
-    only = hashlib.md5(str(uuid.uuid1()).encode(encoding="UTF-8")).hexdigest()
+    if not text:
+        text = str(uuid.uuid1())
+    only = hashlib.md5(text.encode(encoding="UTF-8")).hexdigest()
     return str(only)
 
 
@@ -54,9 +56,8 @@ def aes_hash_password(password) -> str:
     hash_res = aeshash.encrypt(password)
     if hash_res.get("code"):
         return hash_res.get("data")
-    logger.error(f"AES加密失败 {hash_res.get("data")}")
+    logger.error(f"AES加密失败 {hash_res.get('data')}")
     raise ValueError("AES加密失败")
-
 
 
 def aes_decrypt_password(hash_password) -> str:
@@ -69,7 +70,7 @@ def aes_decrypt_password(hash_password) -> str:
     hash_res = aeshash.decrypt(hash_password)
     if hash_res.get("code"):
         return hash_res.get("data")
-    logger.error(f"AES解密失败 {hash_res.get("data")}")
+    logger.error(f"AES解密失败 {hash_res.get('data')}")
     raise ValueError("AES解密失败")
 
 

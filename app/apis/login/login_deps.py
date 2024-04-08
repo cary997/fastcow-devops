@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 from fastapi import Depends
 from pydantic import BaseModel, Field
 from sqlmodel import col, select
@@ -76,7 +76,7 @@ async def user_login(
     return verify_info
 
 
-async def get_user_link_menus(session: AsyncSession, user: Users) -> list[Menus]:
+async def get_user_link_menus(session: AsyncSession, user: Users) -> Sequence[Menus]:
     # 平台设置的用户默认权限
     default_roles: list[int] = await get_redis_data(
         "sys:settings", "general.user_default_roles"
@@ -94,7 +94,7 @@ async def get_user_link_menus(session: AsyncSession, user: Users) -> list[Menus]
         routers = (await session.exec(select(Menus))).all()
         return routers
     # 角色ID关联的所有菜单ID 去重
-    menus_id: list[int] = (
+    menus_id = (
         await session.exec(
             select(RolesMenusLink.auth_menus_id)
             .distinct()

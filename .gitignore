@@ -3,12 +3,15 @@
 *__pycache__
 *.pyc
 *.sqlite
-*dev.yaml
+
+*.dev.yaml
 *devtest
+
 logs
-# Celery stuff
+data
 celerybeat-schedule
 celerybeat.pid
+
 # General
 .DS_Store
 .AppleDouble

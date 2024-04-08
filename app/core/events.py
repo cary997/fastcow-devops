@@ -1,3 +1,4 @@
+import os
 from typing import Callable
 
 from fastapi import FastAPI
@@ -20,6 +21,10 @@ def startup(app: FastAPI) -> Callable:
     # 日志初始化
     init_logs()
     logger.info("Application Start Event Handler")
+    # 检查数据目录是否存在
+    if not os.path.exists(settings.DATA_PATH):
+        os.makedirs(settings.DATA_PATH)
+    logger.info(f"Data Path - {settings.DATA_PATH}")
     # 注册中间件
     register_middleware(app)
     logger.success("Middleware Registration Complete")

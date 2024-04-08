@@ -22,10 +22,11 @@ async def auth_menus_add(
     response = schema.MenuCreateResponse
     # 判断菜单是否存在
     stmt = select(Menus).where((col(Menus.name) == create_menu.name))
-    menu = (await session.exec(stmt)).first()
+    menu = (await session.exec(stmt)).one_or_none()
     if menu:
         return response(message=f"对象 {create_menu.name} 已存在").fail()
     db_menu = Menus.model_validate(create_menu)
+    db_menu.meta = db_menu.meta.model_dump()
     session.add(db_menu)
     await session.commit()
     await session.refresh(db_menu)

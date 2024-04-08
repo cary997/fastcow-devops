@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
 from typing import Optional, Union
+
+from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError, ValidationException
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from pydantic import BaseModel, Field, ValidationError
+from fastapi.responses import JSONResponse
 from loguru import logger
+from pydantic import BaseModel, Field, ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -19,6 +20,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ValidationError, handler=validation_error_handler)
     app.add_exception_handler(Exception, handler=server_error_handler)
     app.add_exception_handler(AuthError, auth_error_handler)
+    app.add_exception_handler(FilesOptionError, files_options_error_handler)
 
 
 async def http_error_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -110,7 +112,44 @@ async def auth_error_handler(
     exc: AuthError,
 ) -> JSONResponse:
     """
-    参数校验错误处理
+    认证错误处理
+    :param _:
+    :param exc:
+    :return:
+    """
+    if exc.data is None:
+        exc.data = {}
+    return JSONResponse(
+        {"code": 0, "message": exc.message, "data": exc.data},
+        status_code=exc.status_code,
+        headers=exc.headers,
+    )
+
+
+class FilesOptionError(Exception):
+    """
+    文件操作错误
+    """
+
+    def __init__(
+        self,
+        message: str,
+        headers: Optional[dict] | None = None,
+        status_code: int = status.HTTP_417_EXPECTATION_FAILED,
+        data: Optional[dict] | None = None,
+    ):
+        self.message = message
+        self.headers = headers
+        self.data = data
+        self.status_code = status_code
+
+
+async def files_options_error_handler(
+    _: Request,
+    exc: FilesOptionError,
+) -> JSONResponse:
+    """
+    文件操作错误处理
     :param _:
     :param exc:
     :return:

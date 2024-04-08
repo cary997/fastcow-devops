@@ -1,5 +1,6 @@
-import json
-from typing import Any, List
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def get_dict_target_value(data: dict, key: str | None) -> Any:
@@ -44,7 +45,7 @@ class ToTree:
 
     def __init__(
         self,
-        data: List,
+        data: List = [],
         is_sorted: bool = False,
         sort_key: str | None = None,
         root_flag: str = "id",
@@ -122,73 +123,3 @@ class ToTree:
         # 退出递归的条件
         if len(p[self.chidren_key]) == 0:
             return
-
-
-if __name__ == "__main__":
-    # data_list = [{'parent': 10023, 'id': 10024, 'theme_name': '英语三级'},
-    #              {'parent': 10022, 'id': 10023, 'theme_name': '英语二级'},
-    #              {'parent': 0, 'id': 10025, 'theme_name': '语文一级'},
-    #              {'parent': 10025, 'id': 10026, 'theme_name': '语文二级'},
-    #              {'parent': 10026, 'id': 10027, 'theme_name': '英语三级'},
-    #              {'parent': 10027, 'id': 10028, 'theme_name': '英语三级'},
-    #              {'parent': 10028, 'id': 10029, 'theme_name': '英语三级'},
-    #              {'parent': 0, 'id': 10022, 'theme_name': '英语一级'}]
-    data_list = [
-        {
-            "name": "运维部",
-            "id": 2,
-            "create_at": 1683302096,
-            "parent": None,
-            "desc": "运维管理部",
-            "update_at": 1683302096,
-            "choice": 0,
-        },
-        {
-            "name": "人事部",
-            "id": 3,
-            "create_at": 1683302177,
-            "parent": None,
-            "desc": None,
-            "update_at": 1683302177,
-            "choice": 0,
-        },
-        {
-            "name": "研发部",
-            "id": 4,
-            "create_at": 1683302202,
-            "parent": None,
-            "desc": None,
-            "update_at": 1683302202,
-            "choice": 0,
-        },
-        {
-            "name": "销售部",
-            "id": 5,
-            "create_at": 1683367726,
-            "parent": 2,
-            "desc": "string",
-            "update_at": 1683367726,
-            "choice": 0,
-        },
-        {
-            "name": "行政部",
-            "id": 6,
-            "create_at": 1683367740,
-            "parent": 3,
-            "desc": "string",
-            "update_at": 1683367740,
-            "choice": 0,
-        },
-        {
-            "name": "技术部",
-            "id": 7,
-            "create_at": 1683367750,
-            "parent": 2,
-            "desc": "string",
-            "update_at": 1683367750,
-            "choice": 0,
-        },
-    ]
-    t = ToTree(data_list)
-    data_tree = t.list_to_tree()
-    print(json.dumps(data_tree, indent=4))

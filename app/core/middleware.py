@@ -12,7 +12,7 @@ def register_middleware(app: FastAPI) -> None:
     """
     添加中间件
     """
-    app.add_middleware(RequestIpChaeckMiddleware)
+    app.add_middleware(RequestIpCheckMiddleware)
     # 跨域
     app.add_middleware(
         CORSMiddleware,
@@ -23,12 +23,9 @@ def register_middleware(app: FastAPI) -> None:
     )
 
 
-class RequestIpChaeckMiddleware(BaseHTTPMiddleware):
+class RequestIpCheckMiddleware(BaseHTTPMiddleware):
     """
     判断IP地址是否允许访问实现IP拦截
-    :param request:
-    :param call_next:
-    :return:
     """
 
     async def dispatch(

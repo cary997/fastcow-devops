@@ -27,7 +27,7 @@ class UsersBase(SQLModel):
     email: Optional[str] = Field(
         default=None, max_length=128, nullable=True, description="邮箱"
     )
-    user_type: UserTypeEnum | None = Field(
+    user_type: UserTypeEnum = Field(
         default=UserTypeEnum.local, description="用户类型(1=local,2=ldap)"
     )
     user_status: Optional[bool] = Field(

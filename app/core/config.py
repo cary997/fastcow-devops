@@ -3,20 +3,20 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml  # type: ignore
-from pydantic import DirectoryPath, HttpUrl, MySQLDsn, computed_field
+from pydantic import DirectoryPath, Field, HttpUrl, MySQLDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+BASE_CONFIG_DIR = os.path.join(BASE_DIR.parent, "config")
+
 
 def load(
-    file=os.path.join(BASE_DIR, "config.yaml"),
-    devfile=os.path.join(BASE_DIR, "config.dev.yaml"),
+    file=os.path.join(BASE_CONFIG_DIR, "config.yaml"),
+    devfile=os.path.join(BASE_CONFIG_DIR, "config.dev.yaml"),
 ):
     """
     载入yaml文件
-    :param file:指定文件名
-    :return:
     """
 
     try:
@@ -43,15 +43,42 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR.joinpath(".env"),
+        env_file=BASE_DIR.joinpath("config/.env"),
         case_sensitive=True,
         # env_prefix="my_prefix_"
     )
 
-    # 项目根路径
+    # 项目基础路径
     BASE_DIR: DirectoryPath = BASE_DIR
+    BASE_CONFIG_DIR: DirectoryPath = BASE_CONFIG_DIR
     BASE_TEMPLATES_DIR: DirectoryPath = BASE_DIR / "templates" / "build"
+    # 数据存放路径
+    DATA_PATH: DirectoryPath = Field(
+        default=DefaultConfig["PATH"]["DATA_PATH"], validate_default=False
+    )
 
+    # 任务模块数据路径
+    @computed_field
+    @property
+    def tasks_templates_path(self) -> str:
+        return f"{self.DATA_PATH}/tasks/templates"
+
+    # 文件上传临时路径
+    @computed_field
+    @property
+    def upload_temp_path(self) -> str:
+        return f"{self.DATA_PATH}/tmp/upload"
+
+    # 文件下载临时路径
+    @computed_field
+    @property
+    def download_tmp_path(self) -> str:
+        return f"{self.DATA_PATH}/tmp/download"
+
+    # 日志存放路径
+    LOG_PATH: DirectoryPath = Field(
+        default=DefaultConfig["PATH"]["LOG_PATH"], validate_default=False
+    )
     # FastAPI配置
     SYS_TITLE: str = DefaultConfig["SYSTEM"]["SYS_TITLE"]
     SYS_LINK: HttpUrl = DefaultConfig["SYSTEM"]["SYS_LINK"]
@@ -63,7 +90,7 @@ class Settings(BaseSettings):
     SYS_ROUTER_SYNCROUTES: str = DefaultConfig["SYSTEM"]["SYS_ROUTER_SYNCROUTES"]
     SYS_OPENAPI_URL: str | None = DefaultConfig["SYSTEM"]["SYS_OPENAPI_URL"]
     SYS_TIMEZONE: str | None = DefaultConfig["SYSTEM"]["SYS_TIMEZONE"]
-    
+
     # 跨域配置
     CORS_ORIGINS: list[str] = DefaultConfig["CORS"]["CORS_ORIGINS"]
     CORS_ALLOW_CREDENTIALS: bool = DefaultConfig["CORS"]["CORS_ALLOW_CREDENTIALS"]
@@ -71,7 +98,6 @@ class Settings(BaseSettings):
     CORS_ALLOW_HEADERS: list[str] = DefaultConfig["CORS"]["CORS_ALLOW_HEADERS"]
 
     # 日志配置
-    LOG_PATH: str = DefaultConfig["LOG"]["LOG_PATH"]
     LOG_SERIALIZE: bool = DefaultConfig["LOG"]["LOG_SERIALIZE"]
     LOG_LEVER: str = DefaultConfig["LOG"]["LOG_LEVER"]
     LOG_ROTATION_TIME: str = DefaultConfig["LOG"]["LOG_ROTATION_TIME"]
@@ -162,9 +188,11 @@ def get_settings():
 # 配置文件实例化
 settings = get_settings()
 
-
 __all__ = ["settings"]
 
 if __name__ == "__main__":
     # print(settings.model_dump())
     print(settings.DATABASE_URI)
+    print(settings.ASYNC_DATABASE_URI)
+    print(settings.LOG_PATH)
+    print(settings.DATA_PATH)

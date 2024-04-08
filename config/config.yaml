@@ -27,16 +27,19 @@ SYSTEM:
 
 CORS:
   # 跨域配置
-  CORS_ORIGINS: ["*"]
+  CORS_ORIGINS: [ "*" ]
   CORS_ALLOW_CREDENTIALS: True
-  CORS_ALLOW_METHODS: ["*"]
-  CORS_ALLOW_HEADERS: ["*"]
+  CORS_ALLOW_METHODS: [ "*" ]
+  CORS_ALLOW_HEADERS: [ "*" ]
+
+PATH:
+  # 数据存放路径
+  DATA_PATH: "data"
+  # 日志文件夹路径
+  LOG_PATH: "logs"
 
 LOG:
-  # 日志路径
-  LOG_PATH:
-    "logs/fastapi-naive.log"
-    # 为True时序列化日志格式为JSON
+  # 为True时序列化日志格式为JSON
   LOG_SERIALIZE: False
   # 日志级别
   LOG_LEVER: "DEBUG"

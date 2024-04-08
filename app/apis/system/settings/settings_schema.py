@@ -1,15 +1,39 @@
 from typing import Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from sqlmodel import Field, SQLModel
 
 from app.core.base import ModelBase, ResponseBase
+from app.core.config import settings
 from app.models.system_model import (
     channelsSeetings,
     generalSettings,
     ldapSettings,
     securitySettings,
 )
+
+
+class PathSettings(BaseModel):
+    """
+    系统路径设置
+    """
+
+    base_path: Optional[str] = Field(
+        default=settings.DATA_PATH,
+        description="基础路径",
+    )
+    tasks_templates_path: Optional[str] = Field(
+        default=settings.tasks_templates_path,
+        description="任务模版存放路径",
+    )
+    upload_temp_path: Optional[str] = Field(
+        default=settings.upload_temp_path,
+        description="上传文件临时路径",
+    )
+    download_temp_path: Optional[str] = Field(
+        default=settings.download_tmp_path,
+        description="下载文件临时路径",
+    )
 
 
 class SettingsBase(SQLModel):
@@ -38,6 +62,10 @@ class SettingsBase(SQLModel):
         nullable=True,
     )
 
+    @computed_field
+    def system_path(self) -> dict:
+        return PathSettings().model_dump()
+
 
 class Settings(ModelBase, SettingsBase):
     """
@@ -57,6 +85,7 @@ class LdapSyncResult(BaseModel):
     """
     ldap同步结果
     """
+
     code: int = Field(default=0, description="状态")
     message: Optional[str] = Field(default=None, description="提示信息")
     date_done: Optional[str] = Field(default=None, description="完成时间")

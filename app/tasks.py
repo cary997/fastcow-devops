@@ -36,7 +36,7 @@ celery = Celery(__name__)
 
 celery.config_from_object(config)
 
-celery.autodiscover_tasks(["app.ext.ldap", "app.ext.channels"])
+celery.autodiscover_tasks(["app.ext.ansible_api","app.ext.ldap", "app.ext.channels"])
 
 # celery -A app.tasks:celery worker -l info -P eventlet
 # celery -A app.tasks:celery beat -S app.tasks:DatabaseScheduler -l info
