@@ -10,7 +10,6 @@ from sqlalchemy.types import PickleType
 from sqlmodel import JSON, TEXT, Field, SQLModel
 
 from app.core.base import ModelBase
-from app.utils.db_tools import generate_id
 
 
 class TaskMeta(SQLModel, table=True):
