@@ -24,7 +24,7 @@ from .models import (
 )
 from .util import NEVER_CHECK_TIMEOUT, nowfun
 
-logger = get_logger('sqlmodel_celery_beat.schedulers')
+logger = get_logger("sqlmodel_celery_beat.schedulers")
 # This scheduler must wake up more frequently than the
 # regular of 5 minutes because it needs to take external
 # changes to the schedule into account.
@@ -46,17 +46,19 @@ class ModelEntry(ScheduleEntry):
     )
     save_fields = ["last_run_at", "total_run_count", "no_changes"]
 
-    def __init__(self, model: PeriodicTask, app=None, session_func=None):  # pylint: disable=super-init-not-called
+    def __init__(
+        self, model: PeriodicTask, app=None, session_func=None
+    ):  # pylint: disable=super-init-not-called
         """Initialize the model entry."""
         self.app = app or current_app._get_current_object()
         self.name = model.name
         self.task = model.task
         try:
             self.schedule = model.schedule
-            logger.debug('schedule: {}'.format(self.schedule))
+            logger.debug("schedule: {}".format(self.schedule))
         except Exception:
             logger.error(
-                'Disabling schedule %s that was removed from database',
+                "Disabling schedule %s that was removed from database",
                 self.name,
             )
             self._disable(model)
@@ -177,11 +179,11 @@ class ModelEntry(ScheduleEntry):
 
     @classmethod
     def from_entry(
-            cls,
-            name: str,
-            session: Session,
-            app: Celery | None = None,
-            **entry,
+        cls,
+        name: str,
+        session: Session,
+        app: Celery | None = None,
+        **entry,
     ):
         task = PeriodicTask(
             name=name,
@@ -209,7 +211,9 @@ class DatabaseScheduler(Scheduler):
     _initial_read = True
     _heap_invalidated = False
 
-    def __init__(self, dburi: str | None = None, *args, **kwargs):  # pylint: disable=keyword-arg-before-vararg
+    def __init__(
+        self, dburi: str | None = None, *args, **kwargs
+    ):  # pylint: disable=keyword-arg-before-vararg
         """Initialize the database scheduler."""
         self._dirty = set()
         # DB handling
@@ -219,9 +223,9 @@ class DatabaseScheduler(Scheduler):
         Scheduler.__init__(self, *args, **kwargs)
         self._finalize = Finalize(self, self.sync, exitpriority=5)
         self.max_interval = (
-                kwargs.get("max_interval")
-                or self.app.conf.beat_max_loop_interval
-                or DEFAULT_MAX_INTERVAL
+            kwargs.get("max_interval")
+            or self.app.conf.beat_max_loop_interval
+            or DEFAULT_MAX_INTERVAL
         )
 
     def get_session(self) -> Session:
@@ -231,7 +235,7 @@ class DatabaseScheduler(Scheduler):
         return self.get_session
 
     def setup_schedule(self):
-        logger.info('setup_schedule')
+        logger.info("setup_schedule")
         self.install_default_entries(self.schedule)
         self.update_from_dict(self.app.conf.beat_schedule)
 
@@ -240,7 +244,7 @@ class DatabaseScheduler(Scheduler):
         s = {}
         with self.get_session() as session:
             for model in session.exec(
-                    select(PeriodicTask).where(PeriodicTask.enabled)
+                select(PeriodicTask).where(PeriodicTask.enabled)
             ).all():
                 try:
                     s[model.name] = ModelEntry(
@@ -279,23 +283,24 @@ class DatabaseScheduler(Scheduler):
                 name = self._dirty.pop()
                 try:
                     self._schedule[name].save()
-                    logger.debug(
-                        '{name} save to database'.format(name=name))
+                    logger.debug("{name} save to database".format(name=name))
                     _tried.add(name)
                 except (KeyError, TypeError, sa.exc.OperationalError):
                     _failed.add(name)
         except sa.exc.DatabaseError as exc:
-            logger.exception('Database error while sync: %r', exc)
+            logger.exception("Database error while sync: %r", exc)
         except sa.exc.InterfaceError as exc:
             logger.warning(
-                'DatabaseScheduler: InterfaceError in sync(), '
-                'waiting to retry in next call...'
+                "DatabaseScheduler: InterfaceError in sync(), "
+                "waiting to retry in next call..."
             )
         finally:
             # retry later, only for the failed ones
             self._dirty |= _failed
 
-    def update_from_dict(self, mapping: dict[str, dict]):  # pylint: disable=arguments-renamed
+    def update_from_dict(
+        self, mapping: dict[str, dict]
+    ):  # pylint: disable=arguments-renamed
         s = {}
         for name, entry_fields in mapping.items():
             try:
@@ -314,20 +319,48 @@ class DatabaseScheduler(Scheduler):
         if self.app.conf.result_expires:
             # Check if celery.backend_cleanup is not already in the schedule,
             if (
-                    not self.get_session()
-                            .exec(
-                        select(PeriodicTask).where(
-                            PeriodicTask.name == "celery.backend_cleanup"
-                        )
+                not self.get_session()
+                .exec(
+                    select(PeriodicTask).where(
+                        PeriodicTask.name == "celery.backend_cleanup"
                     )
-                            .first()
+                )
+                .first()
             ):
                 entries.setdefault(
                     "celery.backend_cleanup",
                     {
                         "task": "celery.backend_cleanup",
+                        "types": "system",
+                        "task_type": "SysApi",
+                        "user_by": "admin",
+                        "priority": 9,
+                        "expire_seconds": 12 * 3600,
                         "crontab": CrontabSchedule(minute="0", hour="4"),
-                        "options": {"expire_seconds": 12 * 3600},
+                    },
+                )
+            if (
+                not self.get_session()
+                .exec(
+                    select(PeriodicTask).where(
+                        PeriodicTask.name == "system.backend_cleanup"
+                    )
+                )
+                .first()
+            ):
+                entries.setdefault(
+                    "system.backend_cleanup",
+                    {
+                        "task": "system.backend_cleanup",
+                        "types": "system",
+                        "task_type": "SysApi",
+                        "user_by": "admin",
+                        "priority": 9,
+                        "expire_seconds": 12 * 3600,
+                        "kwargs": {
+                            "task_history_expire": 7,
+                        },
+                        "crontab": CrontabSchedule(minute="0", hour="3"),
                     },
                 )
         self.update_from_dict(entries)
@@ -362,4 +395,4 @@ class DatabaseScheduler(Scheduler):
     def info(self):
         """override"""
         # return infomation about Schedule
-        return f'    . db -> {self.dburi}'
+        return f"    . db -> {self.dburi}"

@@ -73,6 +73,7 @@ async def check_token_dep(req: Request, token: TokenDep) -> None:
                 raise jwt_expires_error
             # 缓存用户ID至request
             req.state.user_id = user_id
+            req.state.username = username
         else:
             raise jwt_validation_error
     except ExpiredSignatureError:

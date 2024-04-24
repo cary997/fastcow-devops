@@ -6,6 +6,7 @@ from typing import Any
 from app.core.cache import get_async_redis
 from app.utils.format_tools import get_dict_target_value
 
+
 def is_json(data: str | None) -> bool:
     """
     判断是否为json
@@ -57,7 +58,7 @@ async def get_redis_data(key: str, value_key: str | None = None) -> Any:
         raise e
 
 
-async def set_redis_data(key: str, value: str, **kwargs) -> None:
+async def set_redis_data(key: str, value: str | dict, **kwargs) -> None:
     """
     key : reids中的key
     value : 要存的数据

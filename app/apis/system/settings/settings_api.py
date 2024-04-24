@@ -1,9 +1,11 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from celery.result import AsyncResult
+from fastapi import APIRouter, Depends, Request
 from sqlmodel import select
+
 from app.depends import AsyncSessionDep
-from app.ext.ldap.tasks import ldap_sync
+from app.ext.ldap_tsk.tasks import ldap_sync
 from app.models.tasks_model import TaskMeta
 from app.utils.cache_tools import get_redis_data, redis_exists_key, set_redis_data
 from app.utils.datetime_tools import utc_to_local
@@ -14,7 +16,6 @@ from .settings_deps import (
     get_or_create_settings,
     set_settings_depends,
 )
-from celery.result import AsyncResult
 
 router = APIRouter()
 
@@ -36,8 +37,9 @@ async def get_settings(session: AsyncSessionDep) -> Any:
 
 @router.patch("/set", summary="更新系统配置", response_model=schema.SettingsResponse)
 async def set_settings(
-        session: AsyncSessionDep,
-        update_content: Annotated[dict, Depends(set_settings_depends)],
+    session: AsyncSessionDep,
+    req: Request,
+    update_content: Annotated[dict, Depends(set_settings_depends)],
 ) -> Any:
     """
     更新系统配置
@@ -51,10 +53,13 @@ async def set_settings(
     session.add(settings)
     await session.commit()
     await session.refresh(settings)
-    await set_redis_data("sys:settings", value=settings.model_dump())
+    await set_redis_data(
+        "sys:settings",
+        value=settings.model_dump(exclude={"ansible_model_list", "system_path"}),
+    )
     if "ldap" in update_content:
         # 更新ldap定时同步
-        await add_ldap_sync_interval_task(session=session)
+        await add_ldap_sync_interval_task(session=session, username=req.state.username)
     return response(message="更新成功", data=settings).success()
 
 

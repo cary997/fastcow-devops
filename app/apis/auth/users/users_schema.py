@@ -1,8 +1,8 @@
-from typing import Optional
+from typing import Any, Optional
 
 from sqlmodel import Field, SQLModel
 
-from app.core.base import ModelBase, ResponseBase
+from app.core.base import ModelBase, PagingQueryBaseModel, ResponseBase
 from app.models.auth_model import Roles, UsersBase
 
 
@@ -109,6 +109,7 @@ class UserReadWithRoles(UsersBase, ModelBase):
     """
     用户读取包含关联角色
     """
+
     username: str = Field(default=..., max_length=32, description="用户名")
     roles: list[Roles] = []
 
@@ -121,16 +122,16 @@ class UserReadWithRolesResponse(ResponseBase):
     data: Optional[UserReadWithRoles] = None
 
 
-class UserQueryResult(SQLModel):
+class UserQuery(UserCreateResult):
+    roles: Optional[list[Any]] = Field(default=None, description="角色ID列表")
+
+
+class UserQueryResult(PagingQueryBaseModel):
     """
     用户过滤结果
     """
 
-    result: Optional[list[UserCreateResult]] = None
-    total: Optional[int] = None
-    page_total: Optional[int] = None
-    page: Optional[int] = None
-    limit: Optional[int] = None
+    result: Optional[list[UserQuery]] = None
 
 
 class UserQueryResponse(ResponseBase):

@@ -2,16 +2,16 @@ from fastapi import HTTPException
 from loguru import logger
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from app.ext.ldap.utils import get_ldap_sync_conf
+
+from app.ext.ldap_tsk.utils import get_ldap_sync_conf
+from app.ext.sqlmodel_celery_beat.models import (
+    IntervalPeriod,
+    IntervalSchedule,
+    PeriodicTask,
+)
+from app.models.system_model import SettingsBase, SystemSettings
 from app.utils.ipaddress_tools import check_ip_list
 from app.utils.password_tools import aes_hash_password, is_decrypt
-from .settings_schema import SettingsBase
-from app.models.system_model import SystemSettings
-from app.ext.sqlmodel_celery_beat.models import (
-    PeriodicTask,
-    IntervalSchedule,
-    IntervalPeriod,
-)
 
 
 async def get_or_create_settings(session: AsyncSession) -> SystemSettings:
@@ -27,7 +27,7 @@ async def get_or_create_settings(session: AsyncSession) -> SystemSettings:
             await session.refresh(settings)
             return settings
         except Exception as e:  # pylint: disable=broad-exception-caught
-            session.rollback()
+            await session.rollback()
             logger.error(f"{e}")
     return settings
 
@@ -79,7 +79,7 @@ async def set_settings_depends(update_content: SettingsBase) -> dict:
     return update_dict
 
 
-async def add_ldap_sync_interval_task(session: AsyncSession):
+async def add_ldap_sync_interval_task(session: AsyncSession, username: str = "admin"):
     """
     添加ldap定时同步任务
     """
@@ -89,25 +89,25 @@ async def add_ldap_sync_interval_task(session: AsyncSession):
             select(PeriodicTask).where(PeriodicTask.task == "tasks.ldap_sync")
         )
     ).one_or_none()
-    schedule = (await session.exec(
-        select(IntervalSchedule).filter_by(
-            every=sync_config.interval, period=IntervalPeriod.MINUTES
-        )
-    )).one_or_none()
-    if not schedule:
-        schedule = IntervalSchedule(
-                every=sync_config.interval, period=IntervalPeriod.MINUTES
-            )
+    schedule = IntervalSchedule(
+        every=sync_config.interval, period=IntervalPeriod.MINUTES
+    )
     if task:
-        task.interval=schedule
-        task.enabled=sync_config.enable
+        scheduler = task.scheduled
+        scheduler.sqlmodel_update(schedule.model_dump(exclude_unset=True))
+        task.interval = schedule
+        task.enabled = sync_config.enable
+        task.user_by = username
     else:
         task = PeriodicTask(
             name="ldap_sync",
             task="tasks.ldap_sync",
+            types="system",
+            task_type="SysApi",
+            user_by=username,
             interval=schedule,
-            enabled=sync_config.enable
+            enabled=sync_config.enable,
         )
+    session.add(schedule)
     session.add(task)
     await session.commit()
-

@@ -3,8 +3,10 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml  # type: ignore
-from pydantic import DirectoryPath, Field, HttpUrl, MySQLDsn, computed_field
+from pydantic import BaseModel, DirectoryPath, Field, HttpUrl, MySQLDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.utils.files_tools import mkdir_dir
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -57,28 +59,27 @@ class Settings(BaseSettings):
         default=DefaultConfig["PATH"]["DATA_PATH"], validate_default=False
     )
 
-    # 任务模块数据路径
     @computed_field
     @property
-    def tasks_templates_path(self) -> str:
-        return f"{self.DATA_PATH}/tasks/templates"
-
-    # 文件上传临时路径
-    @computed_field
-    @property
-    def upload_temp_path(self) -> str:
-        return f"{self.DATA_PATH}/tmp/upload"
-
-    # 文件下载临时路径
-    @computed_field
-    @property
-    def download_tmp_path(self) -> str:
-        return f"{self.DATA_PATH}/tmp/download"
+    def base_data_path(self) -> str:
+        path = str(self.DATA_PATH)
+        if path.endswith("/"):
+            path = path[:-1]
+        return path
 
     # 日志存放路径
     LOG_PATH: DirectoryPath = Field(
         default=DefaultConfig["PATH"]["LOG_PATH"], validate_default=False
     )
+
+    @computed_field
+    @property
+    def base_logs_path(self) -> str:
+        path = str(self.LOG_PATH)
+        if path.endswith("/"):
+            path = path[:-1]
+        return path
+
     # FastAPI配置
     SYS_TITLE: str = DefaultConfig["SYSTEM"]["SYS_TITLE"]
     SYS_LINK: HttpUrl = DefaultConfig["SYSTEM"]["SYS_LINK"]
@@ -188,11 +189,39 @@ def get_settings():
 # 配置文件实例化
 settings = get_settings()
 
-__all__ = ["settings"]
 
+class BasePath(BaseModel):
+    """
+    项目路径
+    """
+
+    base_path: str = settings.base_data_path
+    # 任务模版数据路径
+    tasks_templates_path: str = f"{settings.base_data_path}/tasks/templates"
+    # 任务执行元数据路径
+    tasks_meta_path: str = f"{settings.base_data_path}/tasks/metadata"
+    # 文件上传临时路径
+    upload_temp_path: str = f"{settings.base_data_path}/tmp/upload"
+    # 文件下载临时路径
+    download_temp_path: str = f"{settings.base_data_path}/tmp/download"
+
+
+@lru_cache
+def get_base_path():
+    return BasePath()
+
+
+# 路径配置实例化
+base_path = get_base_path()
+
+
+def init_path() -> None:
+    for k, v in base_path.model_dump().items():
+        # 检查数据目录是否存在
+        if not os.path.exists(v):
+            mkdir_dir(v)
+
+
+__all__ = [settings, base_path, init_path]
 if __name__ == "__main__":
-    # print(settings.model_dump())
-    print(settings.DATABASE_URI)
-    print(settings.ASYNC_DATABASE_URI)
-    print(settings.LOG_PATH)
-    print(settings.DATA_PATH)
+    init_path()

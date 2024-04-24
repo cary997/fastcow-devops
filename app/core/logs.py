@@ -133,8 +133,8 @@ def init_logs() -> None:
             "serialize": settings.LOG_SERIALIZE,
         }
         # 日志文件路径
-        access_log = os.path.join(settings.LOG_PATH, "access.log")
-        error_log = os.path.join(settings.LOG_PATH, "error.log")
+        access_log = os.path.join(settings.base_logs_path, "access.log")
+        error_log = os.path.join(settings.base_logs_path, "error.log")
         # 添加记录器
         logger.add(
             sink=access_log,

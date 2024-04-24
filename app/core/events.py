@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from loguru import logger
 
 from app.core.cache import register_redis
-from app.core.config import settings
+from app.core.config import init_path, settings
 from app.core.database import register_db
 from app.core.exeption import register_exception_handlers
 from app.core.logs import init_logs
@@ -22,9 +22,8 @@ def startup(app: FastAPI) -> Callable:
     init_logs()
     logger.info("Application Start Event Handler")
     # 检查数据目录是否存在
-    if not os.path.exists(settings.DATA_PATH):
-        os.makedirs(settings.DATA_PATH)
-    logger.info(f"Data Path - {settings.DATA_PATH}")
+    init_path()
+    logger.info(f"Data Path - {settings.base_data_path}")
     # 注册中间件
     register_middleware(app)
     logger.success("Middleware Registration Complete")

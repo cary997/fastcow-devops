@@ -1,8 +1,12 @@
 from enum import IntEnum
 from typing import Optional
-from sqlmodel import SQLModel, Field, JSON
+
+from pydantic import computed_field
+from sqlmodel import JSON, Field, SQLModel
 
 from app.core.base import ModelBase
+from app.core.config import base_path
+from app.ext.ansible_tsk.helper import list_ansible_modules
 from app.utils.password_tools import aes_hash_password
 
 
@@ -179,6 +183,14 @@ class SettingsBase(SQLModel):
         description="通知渠道",
         nullable=True,
     )
+
+    @computed_field
+    def system_path(self) -> dict:
+        return base_path.model_dump()
+
+    @computed_field
+    def ansible_model_list(self) -> set[str]:
+        return list_ansible_modules()
 
 
 class SystemSettings(SettingsBase, ModelBase, table=True):

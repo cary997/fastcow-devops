@@ -1,6 +1,7 @@
+import enum
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional, Union
 from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
@@ -12,18 +13,20 @@ from cron_descriptor import (
     WrongArgumentException,
     get_description,
 )
-from pydantic import ValidationError, field_validator, model_validator
+from pydantic import ValidationError, computed_field, field_validator, model_validator
+from pydantic_core import InitErrorDetails, PydanticCustomError
 from sqlalchemy.event import listen
-from sqlmodel import Column, Field, Relationship, Session, SQLModel, select, BIGINT
+from sqlmodel import BIGINT, Column, Field, Relationship, Session, SQLModel, select
 
 from app.core.base import ModelBase
 from app.core.config import settings
 
+from ...models.tasks_model import TaskType
 from .clockedschedule import clocked
 from .tzcrontab import TzAwareCrontab
 from .util import make_aware, nowfun
 
-logger = get_logger('sqlmodel_celery_beat.models')
+logger = get_logger("sqlmodel_celery_beat.models")
 
 
 def cronexp(field: str) -> str:
@@ -44,7 +47,7 @@ class ModelMixin(ModelBase):
         return self
 
     def save(
-            self, session: Session, *args, **kwargs
+        self, session: Session, *args, **kwargs
     ):  # pylint: disable=unused-argument
         session.add(self)
         session.commit()
@@ -75,9 +78,7 @@ class IntervalSchedule(ModelMixin, table=True):
 
     @property
     def schedule(self):
-        return schedules.schedule(
-            timedelta(**{self.period: self.every}), nowfun=nowfun
-        )
+        return schedules.schedule(timedelta(**{self.period: self.every}), nowfun=nowfun)
 
     def __str__(self):
         return f"every {self.every} {self.period}"
@@ -278,14 +279,14 @@ class PeriodicTasksChanged(SQLModel, table=True):
 
     @classmethod
     def update_changed(
-            cls, mapper, connection, target
+        cls, mapper, connection, target
     ):  # pylint: disable=unused-argument
         """
         :param mapper: the Mapper which is the target of this event
         :param connection: the Connection being used
         :param target: the mapped instance being persisted
         """
-        logger.info('Database last time set to now')
+        logger.info("Database last time set to now")
         row = connection.execute(select(cls).where(cls.id == 1)).first()
         if row is None:
             connection.execute(sa.insert(cls).values(id=1, last_update=nowfun()))
@@ -313,24 +314,57 @@ class PeriodicTasksChanged(SQLModel, table=True):
             pass
 
 
+class ScheduledType(str, enum.Enum):
+    """
+    The type of a periodic task.
+    """
+
+    interval = "interval"
+    crontab = "crontab"
+    solar = "solar"
+    clocked = "clocked"
+    system = "system"
+
+
 class PeriodicTask(ModelMixin, table=True):
     """Model representing a periodic task."""
 
     __tablename__ = "tasks_periodic_task"
     name: str = Field(max_length=200, unique=True)
     task: str = Field(max_length=200)
+    types: Optional[ScheduledType] = Field(default=ScheduledType.interval)
+    task_type: TaskType = Field(default=TaskType.playbook)
+    interval_id: Optional[int] = Field(
+        sa_type=BIGINT, default=None, foreign_key="tasks_interval_schedule.id"
+    )
+    interval: Optional[IntervalSchedule] = Relationship(
+        back_populates="periodic_task",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
-    interval_id: Optional[int] = Field(sa_type=BIGINT, default=None, foreign_key="tasks_interval_schedule.id")
-    interval: Optional[IntervalSchedule] = Relationship(back_populates="periodic_task")
+    crontab_id: Optional[int] = Field(
+        sa_type=BIGINT, default=None, foreign_key="tasks_crontab_schedule.id"
+    )
+    crontab: Optional[CrontabSchedule] = Relationship(
+        back_populates="periodic_task",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
-    crontab_id: Optional[int] = Field(sa_type=BIGINT, default=None, foreign_key="tasks_crontab_schedule.id")
-    crontab: Optional[CrontabSchedule] = Relationship(back_populates="periodic_task")
+    solar_id: Optional[int] = Field(
+        sa_type=BIGINT, default=None, foreign_key="tasks_solar_schedule.id"
+    )
+    solar: Optional[SolarSchedule] = Relationship(
+        back_populates="periodic_task",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
-    solar_id: Optional[int] = Field(sa_type=BIGINT, default=None, foreign_key="tasks_solar_schedule.id")
-    solar: Optional[SolarSchedule] = Relationship(back_populates="periodic_task")
-
-    clocked_id: Optional[int] = Field(sa_type=BIGINT, default=None, foreign_key="tasks_clocked_schedule.id")
-    clocked: Optional[ClockedSchedule] = Relationship(back_populates="periodic_task")
+    clocked_id: Optional[int] = Field(
+        sa_type=BIGINT, default=None, foreign_key="tasks_clocked_schedule.id"
+    )
+    clocked: Optional[ClockedSchedule] = Relationship(
+        back_populates="periodic_task",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
     # These are JSON fields, so we can store any serializable data
     # For querying, we can use the JSON operators in SQLAlchemy
@@ -374,40 +408,84 @@ class PeriodicTask(ModelMixin, table=True):
         default=nowfun(),
     )
     description: str = Field(max_length=200, nullable=True)
-
+    user_by: Optional[str] = Field(default=None, max_length=64, nullable=True)
     no_changes: bool = False
 
     @model_validator(mode="after")
-    @classmethod
-    def validate_unique(cls, values: dict):
-
-        schedule_types = ["interval", "crontab", "solar", "clocked"]
-        selected_schedule_types = [
-            s for s in schedule_types if values.get(s) is not None
-        ]
+    def validate_unique(self):
+        selected_schedule_types = list(
+            filter(
+                lambda element: element is not None,
+                [
+                    self.interval,
+                    self.crontab,
+                    self.solar,
+                    self.clocked,
+                ],
+            )
+        )
 
         if len(selected_schedule_types) == 0:
-            raise ValidationError(
-                "One of clocked, interval, crontab, or solar "
-                "must be set."  # pylint: disable=implicit-str-concat
+            raise ValidationError.from_exception_data(
+                title="Missing Schedule Type",
+                line_errors=[
+                    InitErrorDetails(
+                        input=self.name,
+                        type=PydanticCustomError(
+                            "String",
+                            "One of clocked, interval, crontab, or solar must be set.",
+                        ),
+                    )
+                ],
             )
 
-        err_msg = (
-            "Only one of clocked, interval, crontab, "
-            "or solar must be set"  # pylint: disable=implicit-str-concat
-        )
+        err_msg = "Only one of clocked, interval, crontab, or solar must be set"
         if len(selected_schedule_types) > 1:
             error_info = {}
             for selected_schedule_type in selected_schedule_types:
                 error_info[selected_schedule_type] = [err_msg]
-            raise ValidationError(f"{error_info}")
+            raise ValidationError.from_exception_data(
+                title="Schedule Conflict",
+                line_errors=[
+                    InitErrorDetails(
+                        input=self.name,
+                        type=PydanticCustomError(
+                            "String",
+                            f"{error_info}",
+                        ),
+                    )
+                ],
+            )
 
         # clocked must be one off task
-        if values["clocked"] and not values["one_off"]:
+        if self.clocked and not self.one_off:
             err_msg = "clocked must be one off, one_off must set True"
-            raise ValidationError(err_msg)
-        if (values["expires_seconds"] is not None) and (values["expires"] is not None):
-            raise ValidationError("Only one can be set, in expires and expire_seconds")
+            raise ValidationError.from_exception_data(
+                title="Clocked Error",
+                line_errors=[
+                    InitErrorDetails(
+                        input=self.name,
+                        type=PydanticCustomError(
+                            "String",
+                            f"{err_msg}",
+                        ),
+                    )
+                ],
+            )
+        if (self.expire_seconds is not None) and (self.expires is not None):
+            raise ValidationError.from_exception_data(
+                title="Expires Error",
+                line_errors=[
+                    InitErrorDetails(
+                        input=self.name,
+                        type=PydanticCustomError(
+                            "String",
+                            "Only one can be set, in expires and expire_seconds",
+                        ),
+                    )
+                ],
+            )
+        return self
 
     @property
     def expires_(self):
@@ -427,13 +505,13 @@ class PeriodicTask(ModelMixin, table=True):
 
     @property
     def scheduler(self):
-        if self.interval:
+        if self.interval_id:
             return self.interval
-        if self.crontab:
+        if self.crontab_id:
             return self.crontab
-        if self.solar:
+        if self.solar_id:
             return self.solar
-        if self.clocked:
+        if self.clocked_id:
             return self.clocked
         else:
             raise ValueError("No scheduler found")
@@ -441,6 +519,31 @@ class PeriodicTask(ModelMixin, table=True):
     @property
     def schedule(self):
         return self.scheduler.schedule
+
+    @computed_field
+    @property
+    def scheduled(
+        self,
+    ) -> Union[IntervalSchedule, CrontabSchedule, SolarSchedule, ClockedSchedule]:
+        return self.scheduler
+
+    @computed_field
+    @property
+    def schedule_str(self) -> str:
+        if self.types == ScheduledType.interval or self.task == "tasks.ldap_sync":
+            unit = "m"
+            if self.interval.period == IntervalPeriod.HOURS:
+                unit = "h"
+            if self.interval.period == IntervalPeriod.DAYS:
+                unit = "d"
+            if self.interval.period == IntervalPeriod.SECONDS:
+                unit = "s"
+            return f"{self.interval.every}/{unit}"
+        if self.types == ScheduledType.crontab or self.task in [
+            "celery.backend_cleanup",
+            "system.backend_cleanup",
+        ]:
+            return f"{self.crontab.minute} {self.crontab.hour} {self.crontab.day_of_week} {self.crontab.day_of_month} {self.crontab.month_of_year}"
 
 
 listen(PeriodicTask, "after_insert", PeriodicTasksChanged.update_changed)

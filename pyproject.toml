@@ -1,10 +1,10 @@
 [tool.poetry]
 authors = ["Cary <yaoleiguo@gmail.com>"]
-description = ""
+description = "Fastcow Backend Api Service"
 name = "fastcow-devops"
 package-mode = false
 readme = "README.md"
-version = "0.1.0"
+version = "1.3.16"
 
 [tool.poetry.dependencies]
 alembic = "^1.13.1"

@@ -1,7 +1,17 @@
 from sqlmodel import SQLModel
 
 from app.core.database import engine
-from app.models.tasks_model import TaskTemplates
+from app.ext.sqlmodel_celery_beat.models import (
+    ClockedSchedule,
+    CrontabSchedule,
+    IntervalSchedule,
+    PeriodicTask,
+    PeriodicTasksChanged,
+    SolarSchedule,
+)
+from app.models.auth_model import Menus, Roles, RolesMenusLink, Users, UsersRolesLink
+from app.models.system_model import SystemSettings
+from app.models.tasks_model import TasksHistory, TaskTemplates
 
 if __name__ == "__main__":
 

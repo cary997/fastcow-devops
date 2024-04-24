@@ -3,8 +3,8 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.core.base import ResponseBase
-from app.ext.channels.tasks import send_email
-from app.ext.ldap.ldap_auth import LdapAuthMixin
+from app.ext.channels_tsk.tasks import send_email
+from app.ext.ldap_tsk.ldap_auth import LdapAuthMixin
 from app.models.system_model import ldapConfig, mailServerSettings
 
 from .check_schema import testLdapResponse

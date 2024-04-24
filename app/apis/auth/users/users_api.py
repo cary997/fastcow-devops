@@ -4,10 +4,11 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Query, Request
 from redis import Redis
 from sqlalchemy import func
-from sqlmodel import col, select
+from sqlmodel import col, or_, select
 
+from app.core.base import PagingQueryBase
 from app.depends import AsyncSessionDep
-from app.ext.channels.tasks import send_email
+from app.ext.channels_tsk.tasks import send_email
 from app.models.auth_model import Users, UsersRolesLink
 from app.utils.cache_tools import get_redis_data
 
@@ -101,7 +102,7 @@ async def auth_users_bulkdel(
     # redis中批量删除token
     cache: Redis = request.app.state.cache
     p_cache = cache.pipeline()
-    p_cache.delete(*cache_kyes)
+    await p_cache.delete(*cache_kyes)
     await p_cache.execute()
     return response(message="删除成功", data=res_list).success()
 
@@ -208,7 +209,7 @@ async def auth_users_bulkset(
         # redis中批量删除token
         cache: Redis = request.app.state.cache
         p_cache = cache.pipeline()
-        p_cache.delete(*cache_kye)
+        await p_cache.delete(*cache_kye)
         await p_cache.execute()
     return response(message="更新完成", data=res_list).success()
 
@@ -244,26 +245,27 @@ async def auth_users_query(
         query.setdefault("user_type", user_type)
     if user_status is not None:
         query.setdefault("user_status", user_status)
+    select_where = None
     if roles:
-        query.setdefault("roles", roles)
+        select_where = col(Users.roles).any(id=roles)
     # 查询结果
-    stmt = select(Users).filter_by(**query).limit(limit).offset(limit * (page - 1))
-    query_data = (await session.exec(stmt)).all()
-    # 用户总数
-    query_total = (
-        await session.exec(
-            select(func.count()).select_from(Users)  # pylint: disable=not-callable
+    order_by = -Users.create_at
+    paging_query = PagingQueryBase(
+        query, order_by, limit, page, Users, schema.UserQueryResult
+    )
+    if username or nickname:
+        fitter = or_(
+            col(Users.username).like(f"%{username}%"),
+            col(Users.nickname).like(f"%{nickname}%"),
         )
-    ).one()
-    if not query_total:
-        return response(message="查询结果为空!").success()
-    # 分页总数
-    page_total = math.ceil(query_total / limit)
-    if page > page_total:
-        return response(message="输入页数大于分页总数!").fail()
+        del query["username"]
+        del query["nickname"]
+        query_data = await paging_query.fuzzy_query(session, fitter, query)
+    else:
+        query_data = await paging_query.query(session, select_where)
     # 过滤角色使user['roles']中只包含关联角色的id
     result = []
-    for user in query_data:
+    for user in query_data.result:
         roles_id_list = (
             await session.exec(
                 select(UsersRolesLink.auth_roles_id).where(
@@ -271,15 +273,11 @@ async def auth_users_query(
                 )
             )
         ).all()
-        format_user = user.model_dump()
-        format_user["roles"] = roles_id_list
-        result.append(format_user)
-    # 序列化查询结果
-    result = schema.UserQueryResult(
-        result=result, total=query_total, page_total=page_total, page=page, limit=limit
-    )
+        user.roles = roles_id_list
+        result.append(user)
+    query_data.result = result
 
-    return response(message="查询成功", data=result).success()
+    return response(message="查询成功", data=query_data).success()
 
 
 @router.post("/pwdset", summary="修改密码", response_model=schema.ResponseBase)
@@ -345,5 +343,5 @@ async def auth_users_otpreset(user_id: int, session: AsyncSessionDep) -> Any:
             subject="TOTP重置成功",
             body={"username": user.nickname},
             template_name="reset-totp.html",
-            )
+        )
     return response(message="重置成功").success()

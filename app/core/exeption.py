@@ -52,7 +52,12 @@ async def request_validation_error_handler(
     # logger.warning(f"RequestValidationError - {exc}")
 
     return JSONResponse(
-        {"code": 0, "message": "参数错误", "data": exc.errors(), "body": exc.body},
+        {
+            "code": 0,
+            "message": "参数错误",
+            "data": exc.errors(),
+            "body": exc.body,
+        },
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
 
