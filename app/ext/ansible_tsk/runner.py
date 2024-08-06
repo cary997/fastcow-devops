@@ -8,9 +8,10 @@ import ansible_runner
 from ansible_runner import Runner, RunnerConfig
 from fastapi.exceptions import RequestValidationError
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Json
 from sqlmodel import Session, select
 
+from app.core.cache import get_redis
 from app.core.config import BASE_CONFIG_DIR, base_path
 from app.depends import get_session
 from app.ext.sqlmodel_celery_beat.models import PeriodicTask
@@ -39,7 +40,7 @@ class RunConf(BaseModel):
     timeout: Optional[int] = Field(default=300, description="timeout")
     rotate_artifacts: Optional[int] = Field(default=0, description="rotate artifacts")
     ssh_key: Optional[str] = Field(default=None, description="ssh key content")
-    quiet: Optional[bool] = Field(default=False, description="quiet")
+    quiet: Optional[bool] = Field(default=True, description="quiet")
     json_mode: Optional[bool] = Field(default=False, description="json mode")
     exec_worker: Optional[str] = Field(default=None, description="exec worker")
     module: Optional[str] = Field(default=None, description="ansible module")
@@ -51,18 +52,50 @@ class RunConf(BaseModel):
     role: Optional[str] = Field(default=None, description="role name")
     roles_path: Optional[str] = Field(default=None, description="roles path")
 
-    def get_record(self, session: Session) -> TasksHistory:
+    def get_cache_record(self) -> TasksHistory:
+        redis = next(get_redis())
+        cache_task_record = redis.get(f"tasks:record:{self.ident}")
+        if not cache_task_record:
+            raise Exception("task record not found")
+        task_record = TasksHistory.model_validate(json.loads(cache_task_record))
+        return task_record
+
+    def update_cache_record(self, update_data: dict) -> TasksHistory:
+        redis = next(get_redis())
+        try:
+            task_record = self.get_cache_record()
+            task_record.sqlmodel_update(update_data)
+            redis.set(f"tasks:record:{self.ident}", task_record.model_dump_json())
+            return task_record
+        except Exception as e:
+            logger.error(e)
+            raise e
+        finally:
+            redis.close()
+
+    def clear_cache_record(self) -> bool:
+        redis = next(get_redis())
+        try:
+            redis.delete(f"tasks:record:{self.ident}")
+            return True
+        except Exception as e:
+            logger.error(e)
+            raise e
+        finally:
+            redis.close()
+
+    def get_db_record(self, session: Session) -> TasksHistory:
         db_task_record = session.exec(
             select(TasksHistory).where(TasksHistory.task_id == self.ident)
         ).one_or_none()
         if not db_task_record:
-            raise Exception("task record not found")
+            raise Exception("task db record not found")
         return db_task_record
 
-    def update_record(self, update_data: dict) -> TasksHistory:
+    def update_db_record(self, update_data: dict) -> TasksHistory:
         session = next(get_session())
         try:
-            db_task_record = self.get_record(session)
+            db_task_record = self.get_db_record(session)
             db_task_record.sqlmodel_update(update_data)
             session.add(db_task_record)
             session.commit()
@@ -79,7 +112,6 @@ class RunConf(BaseModel):
             base_path.tasks_meta_path, self.private_data_dir
         )
         if is_check:
-            print(private_data_dir)
             private_data_dir = f"{private_data_dir}-check"
 
         if os.path.exists(private_data_dir):
@@ -99,8 +131,8 @@ class RunConf(BaseModel):
 
     def starting_callback(self) -> dict:
 
-        db_task_record = self.update_record({"exec_worker": self.exec_worker})
-        task_kwargs = db_task_record.task_kwargs
+        task_record = self.update_cache_record({"exec_worker": self.exec_worker})
+        task_kwargs = task_record.task_kwargs
         if not task_kwargs:
             raise Exception("task kwargs not found")
         config = self.check_runner_kwargs(task_kwargs)
@@ -108,17 +140,19 @@ class RunConf(BaseModel):
 
     def finished_callback(self, runner):
         end_time = int(time.time())
-        self.update_record(
+        task_record = self.update_cache_record(
             {
                 "task_status": runner.status,
                 "task_rc": runner.rc,
                 "task_end_time": end_time,
             }
         )
+        self.update_db_record(task_record.model_dump(exclude_none=True))
+        self.clear_cache_record()
 
     def failed_callback(self, error: str, rc: int):
         end_time = int(time.time())
-        self.update_record(
+        task_record = self.update_cache_record(
             {
                 "task_status": "failed",
                 "task_error": error,
@@ -126,14 +160,15 @@ class RunConf(BaseModel):
                 "task_end_time": end_time,
             }
         )
+        self.update_db_record(task_record.model_dump(exclude_none=True))
+        self.clear_cache_record()
 
     def status_handler(self, data, runner_config):
-        if data["status"] == "running":
-            self.update_record(
-                {
-                    "task_status": "running",
-                }
-            )
+        self.update_cache_record(
+            {
+                "task_status": data["status"],
+            }
+        )
 
     def run_task(self) -> Any:
         try:
@@ -203,8 +238,8 @@ class TasksRunConfig(RunConf):
     task_type: TaskType = Field(description="task type")
     task_queue_type: str = Field(default=None, description="任务队列类型")
     task_scheduled_name: Optional[str] = Field(default=None, description="任务计划名称")
-    inventory: Optional[dict] = Field(default=None, description="主机清单")
-    extravars: Optional[str] = Field(default=None, description="额外变量")
+    inventory: Optional[Json | dict] = Field(default=None, description="主机清单")
+    extravars: Optional[Json | str] = Field(default=None, description="额外变量")
     task_template_id: Optional[str] = Field(default=None, description="任务模版ID")
     task_template_name: Optional[str] = Field(
         default=None, description="任务模版显示名"
@@ -212,6 +247,7 @@ class TasksRunConfig(RunConf):
 
     def run_scheduled_task(self, exec_worker: str) -> Any:
         session = next(get_session())
+        redis = next(get_redis())
         periodic_task = session.exec(
             select(PeriodicTask).where(PeriodicTask.name == self.task_name)
         ).one_or_none()
@@ -219,13 +255,15 @@ class TasksRunConfig(RunConf):
             raise Exception("periodic task not found")
         try:
             self.task_queue_type = periodic_task.queue
-            create_task_record(
+            task_record = create_task_record(
                 session=session, username=periodic_task.user_by, run_conf=self
             )
+            redis.set(f"tasks:record:{self.ident}", task_record.model_dump_json())
         except Exception as e:
             raise e
         finally:
             session.close()
+            redis.close()
         try:
             run_config = RunConf.model_validate(self.model_dump())
             run_config.exec_worker = exec_worker
@@ -244,14 +282,25 @@ def parse_task_conf(run_conf: TasksRunConfig) -> TasksRunConfig:
     if run_conf.task_type == TaskType.playbook:
         if run_conf.task_template_id and run_conf.task_template_name:
             run_conf.project_dir = run_conf.task_template_id
-            run_conf.playbook = run_conf.playbook.replace(f"{run_conf.project_dir}/", "")
+            run_conf.playbook = run_conf.playbook.replace(
+                f"{run_conf.project_dir}/", ""
+            )
     if run_conf.extravars:
         if not is_json(run_conf.extravars):
             raise RequestValidationError("extravars Not json format")
         run_conf.extravars = json.loads(run_conf.extravars)
-    # Wait for the cmdb API development to finish
     inventory = {}
-    run_conf.inventory = inventory
+    # Wait for the cmdb API development to finish
+    run_conf.inventory = {
+        "all": {
+            "hosts": {
+                "121.196.209.165": {
+                    "ansible_ssh_user": "root",
+                    "ansible_ssh_pass": "guo123.0",
+                },
+            },
+        },
+    }
     return run_conf
 
 
@@ -263,6 +312,8 @@ def create_task_record(
     task_record = session.exec(
         select(TasksHistory).where(TasksHistory.task_id == run_conf.ident)
     ).one_or_none()
+    if task_record:
+        raise Exception("task record already exists")
     task_kwargs = run_conf.model_dump(
         exclude_none=True,
         exclude={
@@ -277,25 +328,19 @@ def create_task_record(
     )
     task_kwargs["envvars"] = {"ANSIBLE_CONFIG": "config/ansible.cfg"}
 
-    db_task_record = TasksHistory(
+    task_record = TasksHistory(
         task_id=run_conf.ident,
         task_name=run_conf.task_name,
         task_type=run_conf.task_type,
         task_queue_type=run_conf.task_queue_type,
         task_scheduled_name=run_conf.task_scheduled_name,
+        task_status="pending",
         task_kwargs=task_kwargs,
-        task_status="starting",
         task_start_time=int(time.time()),
         task_template_id=run_conf.task_template_id,
         task_template_name=run_conf.task_template_name,
         exec_user=username,
     )
-    if not task_record:
-        task_record = db_task_record
-    else:
-        task_record.sqlmodel_update(
-            db_task_record.model_dump(exclude_none=True, exclude_unset=True)
-        )
     try:
         session.add(task_record)
         session.commit()

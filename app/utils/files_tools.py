@@ -2,6 +2,7 @@ import os
 import shutil
 import stat
 import zipfile
+from pathlib import Path
 from typing import Any, Optional
 
 from loguru import logger
@@ -157,3 +158,16 @@ def get_file_lang(path: str) -> str:
     if path.endswith(".j2"):
         return "jinja2"
     return "shell"
+
+
+def is_text_file(path: str | Path) -> bool:
+    """
+    判断文件是否为文本类型
+    """
+    textchars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
+
+    def is_string(buf):
+        # 判断文件是否为文本类型
+        return bool(buf.translate(None, textchars))
+
+    return is_string(open(path, "rb").read(1024))

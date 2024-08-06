@@ -9,6 +9,7 @@ from app.ext.sqlmodel_celery_beat.models import (
     PeriodicTasksChanged,
     SolarSchedule,
 )
+from app.models.assets.assets_model import AssetsFields, AssetsGroups, AssetsHosts
 from app.models.auth_model import Menus, Roles, RolesMenusLink, Users, UsersRolesLink
 from app.models.system_model import SystemSettings
 from app.models.tasks_model import TasksHistory, TaskTemplates

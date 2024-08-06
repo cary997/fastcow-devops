@@ -1,5 +1,6 @@
 from sqlmodel import col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
 from app.models.auth_model import Roles, Users
 from app.utils.password_tools import generate_password, get_password_hash
 
@@ -12,9 +13,10 @@ async def get_user_name_or_phone(
     """
     username查找用户
     """
-    stmt = select(Users).where(or_(Users.username == username, Users.phone == phone))
-    user = (await session.exec(stmt)).first()
-    return user
+    if phone:
+        stmt = select(Users).where(or_(Users.username == username, Users.phone == phone))
+        user = (await session.exec(stmt)).first()
+        return user
 
 
 async def update_roles_by_id(

@@ -21,6 +21,7 @@ from app.ext.ansible_tsk.runner import (
 from app.ext.ansible_tsk.tasks import asb_temp_task
 from app.models.tasks_model import TasksHistory
 from app.tasks import celery
+from app.utils.cache_tools import get_redis_data, set_redis_data
 from app.utils.files_tools import remove_dir
 
 from . import execution_schema as schemas
@@ -36,9 +37,15 @@ async def tasks_history_get(session: AsyncSessionDep, tid: str) -> Any:
     查询任务历史
     """
     response = schemas.GetHistoryResponse
-    task_record = await session.get(TasksHistory, tid)
+    task_record = await get_redis_data(f"tasks:record:{tid}")
+    if task_record:
+        task_record = TasksHistory.model_validate(task_record)
+    else:
+        task_record = (
+            await session.exec(select(TasksHistory).where(TasksHistory.task_id == tid))
+        ).one_or_none()
     if not task_record:
-        return response(message=f"对象 {tid} 不存在").fail()
+        return response(message=f"{tid} 记录不存在").fail()
     return response(message="查询成功", data=task_record).success()
 
 
@@ -57,6 +64,9 @@ async def tasks_exec_run(
     run_conf.task_queue_type = "asb_temp_task"
     task_record = create_task_record(
         session=session, username=req.state.username, run_conf=run_conf
+    )
+    await set_redis_data(
+        f"tasks:record:{task_record.task_id}", task_record.model_dump()
     )
     asb_temp_task.apply_async(
         task_id=run_conf.ident,

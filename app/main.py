@@ -10,7 +10,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
-# 实例化fastapi
+# 实例化FastAPI实例
 app = FastAPI(
     description=f"""{settings.SYS_DESCRIPTION}""",
     title=settings.SYS_TITLE,

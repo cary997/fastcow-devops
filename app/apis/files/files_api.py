@@ -18,7 +18,13 @@ from app.apis.files.files_schema import (
 )
 from app.core.base import ResponseBase
 from app.core.config import base_path
-from app.utils.files_tools import create_file, get_file_lang, make_dir_zip, mkdir_dir
+from app.utils.files_tools import (
+    create_file,
+    get_file_lang,
+    is_text_file,
+    make_dir_zip,
+    mkdir_dir,
+)
 
 router = APIRouter()
 
@@ -91,13 +97,19 @@ async def read_file(post: ReadFile):
     path = Path(post.path)
     if not os.path.exists(path):
         return ReadFileResponse(message="文件不存在").fail()
-    async with aiofiles.open(path, "rb") as file:
-        code = await file.read()
-        lang = get_file_lang(str(path))
-        await file.close()
-    return ReadFileResponse(
-        message="读取文件成功", data=ReadFileResult(code=code, lang=lang)
-    ).success()
+    if not is_text_file(path):
+        async with aiofiles.open(path, "rb") as file:
+            code = await file.read()
+            lang = get_file_lang(str(path))
+            await file.close()
+        return ReadFileResponse(
+            message="读取文件成功", data=ReadFileResult(code=code, lang=lang)
+        ).success()
+    else:
+        return ReadFileResponse(
+            message="读取文件成功",
+            data=ReadFileResult(code="Unsupported file type!", lang="shell"),
+        ).success()
 
 
 @router.post("/write", summary="写入文件", response_model=ReadFileResponse)
@@ -127,7 +139,9 @@ async def download_file(file_path: str = Query(..., description="文件路径或
     if not os.path.exists(file_path):
         return ResponseBase(message="路径不存在").fail()
     if os.path.isdir(file_path):
-        out_path = os.path.join(base_path.download_tmp_path, os.path.basename(file_path))
+        out_path = os.path.join(
+            base_path.download_temp_path, os.path.basename(file_path)
+        )
         make_dir_zip(file_path, f"{out_path}.zip")
         file_path = f"{out_path}.zip"
     filename = os.path.basename(file_path)

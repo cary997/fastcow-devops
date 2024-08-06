@@ -41,10 +41,10 @@ class generalSettings(SQLModel):
     )
     watermark: Optional[bool] = Field(default=False, description="是否开启水印")
     watermarkContent: Optional[watermarkContentEnum] = Field(
-        default=1, description="水印内容"
+        default=watermarkContentEnum.username, description="水印内容"
     )
     watermarkSize: Optional[watermarkSizeEnum] = Field(
-        default=2, description="水印大小"
+        default=watermarkSizeEnum.default, description="水印大小"
     )
 
 
@@ -94,7 +94,7 @@ class ldapSync(SQLModel):
     interval: Optional[int] = Field(default=120, gt=1, description="同步间隔（分钟）")
     default_status: Optional[bool] = Field(default=False, description="是否默认启用")
     sync_rule: Optional[ldapSyncEnum] = Field(
-        default=1, description="冲突时策略 1以平台为主 2以ldap为主"
+        default=ldapSyncEnum.system, description="冲突时策略 1以平台为主 2以ldap为主"
     )
 
 
@@ -149,7 +149,7 @@ class securitySettings(SQLModel):
 
     totp: Optional[bool] = Field(default=False, description="开启TOTP")
     ip_check: Optional[bool] = Field(default=False, description="IP地址校验")
-    ip_check_mode: CheckModeTypeEnum = Field(default=1, description="IP地址校验模式")
+    ip_check_mode: CheckModeTypeEnum = Field(default=CheckModeTypeEnum.black_list, description="IP地址校验模式")
     ip_black_list: Optional[list[str]] = Field(default=[], description="IP黑名单")
     ip_white_list: Optional[list[str]] = Field(default=[], description="IP白名单")
 
